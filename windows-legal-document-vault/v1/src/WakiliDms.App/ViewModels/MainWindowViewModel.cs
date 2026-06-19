@@ -1,8 +1,10 @@
 using System.Windows.Input;
 using System.Collections.ObjectModel;
+using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Matter;
 using WakiliDms.Core.Setup;
+using WakiliDms.Core.Vault;
 
 namespace WakiliDms.App.ViewModels;
 
@@ -10,24 +12,39 @@ public sealed class MainWindowViewModel : ObservableObject
 {
     private readonly ISettingsStore _settingsStore;
     private readonly IMatterRepository _matterRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IVaultService _vaultService;
+    private readonly DocumentImportService _documentImportService;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
     private string _vaultPath = string.Empty;
     private string _scanFolderPath = string.Empty;
     private string _backupTargetPath = string.Empty;
+    private string _setupRecoveryKey = string.Empty;
     private string _newMatterName = string.Empty;
     private string _newMatterClientName = string.Empty;
     private string _newMatterCourtCaseNumber = string.Empty;
+    private string _importSourceFilePath = string.Empty;
+    private string _importRecoveryKey = string.Empty;
+    private MatterListItemViewModel? _selectedMatter;
     private bool _recoveryKeyConfirmed;
     private bool _isSetupComplete;
     private string _statusMessage = "Complete setup to create a local-first document vault.";
 
-    public MainWindowViewModel(ISettingsStore settingsStore, IMatterRepository matterRepository)
+    public MainWindowViewModel(
+        ISettingsStore settingsStore,
+        IMatterRepository matterRepository,
+        IDocumentRepository documentRepository,
+        IVaultService vaultService)
     {
         _settingsStore = settingsStore;
         _matterRepository = matterRepository;
+        _documentRepository = documentRepository;
+        _vaultService = vaultService;
+        _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _vaultService);
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
+        ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -64,6 +81,12 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _backupTargetPath, value);
     }
 
+    public string SetupRecoveryKey
+    {
+        get => _setupRecoveryKey;
+        set => SetProperty(ref _setupRecoveryKey, value);
+    }
+
     public string NewMatterName
     {
         get => _newMatterName;
@@ -82,6 +105,31 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _newMatterCourtCaseNumber, value);
     }
 
+    public string ImportSourceFilePath
+    {
+        get => _importSourceFilePath;
+        set => SetProperty(ref _importSourceFilePath, value);
+    }
+
+    public string ImportRecoveryKey
+    {
+        get => _importRecoveryKey;
+        set => SetProperty(ref _importRecoveryKey, value);
+    }
+
+    public MatterListItemViewModel? SelectedMatter
+    {
+        get => _selectedMatter;
+        set
+        {
+            if (SetProperty(ref _selectedMatter, value))
+            {
+                (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                _ = ReloadDocumentsForSelectionAsync();
+            }
+        }
+    }
+
     public bool RecoveryKeyConfirmed
     {
         get => _recoveryKeyConfirmed;
@@ -96,6 +144,8 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetProperty(ref _isSetupComplete, value))
             {
                 OnPropertyChanged(nameof(IsSetupRequired));
+                (CreateMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -112,7 +162,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand CreateMatterCommand { get; }
 
+    public ICommand ImportDocumentCommand { get; }
+
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
+
+    public ObservableCollection<DocumentListItemViewModel> Documents { get; } = [];
 
     public IReadOnlyList<string> NextModules { get; } =
     [
@@ -126,6 +180,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public async Task LoadAsync()
     {
         await _matterRepository.InitializeAsync(CancellationToken.None);
+        await _documentRepository.InitializeAsync(CancellationToken.None);
 
         var settings = await _settingsStore.LoadAsync(CancellationToken.None);
         if (settings is null || settings.SetupCompletedAt is null)
@@ -166,7 +221,21 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(SetupRecoveryKey))
+        {
+            StatusMessage = "Recovery key is required to create the encrypted vault.";
+            return;
+        }
+
+        var vault = await _vaultService.CreateVaultAsync(settings.VaultPath, SetupRecoveryKey, CancellationToken.None);
+        if (!vault.Succeeded)
+        {
+            StatusMessage = vault.Error ?? "Encrypted vault could not be created.";
+            return;
+        }
+
         await _settingsStore.SaveAsync(settings, CancellationToken.None);
+        SetupRecoveryKey = string.Empty;
         StatusMessage = $"Vault setup complete for {settings.FirmName}.";
         IsSetupComplete = true;
         await ReloadMattersAsync();
@@ -193,6 +262,7 @@ public sealed class MainWindowViewModel : ObservableObject
             NewMatterCourtCaseNumber = string.Empty;
             StatusMessage = $"Matter created: {matter.Name}.";
             await ReloadMattersAsync();
+            SelectedMatter = Matters.FirstOrDefault(candidate => candidate.Id == matter.Id);
         }
         catch (ArgumentException ex)
         {
@@ -200,13 +270,60 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
+    public async Task ImportDocumentAsync()
+    {
+        if (SelectedMatter is null)
+        {
+            StatusMessage = "Select a matter before importing a document.";
+            return;
+        }
+
+        var request = new DocumentImportRequest(
+            SelectedMatter.Id,
+            ImportSourceFilePath,
+            VaultPath,
+            ImportRecoveryKey);
+
+        var result = await _documentImportService.ImportAsync(request, CancellationToken.None);
+        if (!result.Succeeded || result.Value is null)
+        {
+            StatusMessage = result.Error ?? "Document import failed.";
+            return;
+        }
+
+        StatusMessage = $"Imported {result.Value.OriginalFileName} into {SelectedMatter.Name}.";
+        ImportSourceFilePath = string.Empty;
+        await ReloadDocumentsForSelectionAsync();
+    }
+
     private async Task ReloadMattersAsync()
     {
+        var selectedMatterId = SelectedMatter?.Id;
         Matters.Clear();
         var matters = await _matterRepository.ListAsync(CancellationToken.None);
         foreach (var matter in matters)
         {
             Matters.Add(new MatterListItemViewModel(matter));
+        }
+
+        if (selectedMatterId is not null)
+        {
+            SelectedMatter = Matters.FirstOrDefault(matter => matter.Id == selectedMatterId.Value);
+        }
+    }
+
+    private async Task ReloadDocumentsForSelectionAsync()
+    {
+        Documents.Clear();
+        if (SelectedMatter is null)
+        {
+            return;
+        }
+
+        var documents = await _documentRepository.ListByMatterAsync(SelectedMatter.Id, CancellationToken.None);
+        foreach (var document in documents)
+        {
+            Documents.Add(new DocumentListItemViewModel(document));
         }
     }
 }

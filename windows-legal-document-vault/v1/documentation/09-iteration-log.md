@@ -18,7 +18,7 @@ This log tracks V1 planning and implementation progress.
 | 1 | Setup wizard | Complete | Firm profile, vault path, scan folder, backup target, recovery key confirmation, validation, JSON persistence, and app startup smoke verified. |
 | 2 | Encrypted vault | Complete | Vault manifest, recovery-key unlock, encrypted object storage/readback, wrong-key failure, and unreadable-object tests verified. |
 | 3 | Matter management | Complete | SQLite matter repository, create/list/update tests, UI matter creation form, matter list, and app startup smoke verified. |
-| 4 | Document import | Planned | Next slice: manual import into matter with hashing, supported file checks, and encrypted vault storage. |
+| 4 | Document import | Complete | Manual DOC, DOCX, and PDF import into selected matter with supported file checks, encrypted vault storage, hash metadata, SQLite document registration, and UI matter document list. |
 | 5 | Watched scan folder | Planned | Scanner-folder workflow. |
 | 6 | Classification and versioning | Planned | Document type and lifecycle status. |
 | 7 | OCR and search | Planned | Local OCR adapter and SQLite FTS. |

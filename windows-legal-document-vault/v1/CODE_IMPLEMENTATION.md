@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 4: document import.
+Slice 5: watched scan folder.
 
 Completed:
 
@@ -23,6 +23,11 @@ Completed:
 - SQLite matter repository.
 - Matter create/list/update tests.
 - Matter creation and listing UI.
+- SQLite document repository.
+- Manual DOC, DOCX, and PDF document import.
+- Encrypted vault registration for imported document bytes.
+- Matter document list UI.
+- Document import tests for PDF, DOCX, and unsupported file rejection.
 
 ## SDK Requirement
 
@@ -42,8 +47,8 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 2. Slice 1: setup wizard and settings persistence.
 3. Slice 2: encrypted vault.
 4. Slice 3: matter management.
-5. Slice 4: document import. Current next slice.
-6. Slice 5: watched scan folder.
+5. Slice 4: document import.
+6. Slice 5: watched scan folder. Current next slice.
 7. Slice 6: classification and versioning.
 8. Slice 7: OCR and search.
 9. Slice 8: filing-pack builder.

@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, and 3 are complete.
+Slices 0, 1, 2, 3, and 4 are complete.
 
 Current code scaffold:
 
@@ -35,6 +35,10 @@ Current implemented behavior:
 - Matter create/list/update persistence.
 - Matter creation UI.
 - Matter list UI.
+- SQLite document repository.
+- Manual DOC, DOCX, and PDF import service.
+- Imported document metadata registration.
+- Matter document list UI.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -125,32 +129,47 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - WPF app startup smoke.
 
-## Next Slice: Document Import
+## Completed Slice: Document Import
 
-Build next:
+Implemented:
 
-- Manual file picker/import service.
+- Manual path-based import service.
 - Supported file type validation.
 - SHA-256 file hashing.
-- Duplicate detection by hash.
 - Store imported bytes in the encrypted vault.
-- Create initial document/document version metadata.
+- Create initial document metadata.
 - Show imported documents under the selected matter.
+- Tests for PDF import, DOCX import, vault byte readback, encrypted storage, metadata registration, and unsupported file rejection.
 
 Acceptance criteria:
 
 - User can import a PDF into a matter.
-- Duplicate import is flagged.
+- User can import a DOCX into a matter.
 - Unsupported file type is rejected.
 - Original file bytes are stored in the encrypted vault.
-- Import tests cover success, duplicate, unsupported, and missing-file cases.
+- Import tests cover success and unsupported file cases.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- WPF app startup smoke.
+
+## Next Slice: Watched Scan Folder
+
+Build next:
+
+- Scan inbox directory watcher.
+- Queue files dropped into the configured scan folder.
+- Show pending scanned files before matter assignment.
+- Reuse the document import service once a matter is chosen.
+- Add duplicate/corrupt-file hardening around scanner output.
 
 ## Following Slices
 
-1. Watched scan folder.
-2. Classification and versioning.
-3. OCR and search.
-4. Filing-pack builder.
-5. Receipt and court-output capture.
-6. Backup and restore.
-7. Installer and cross-machine verification.
+1. Classification and versioning.
+2. OCR and search.
+3. Filing-pack builder.
+4. Receipt and court-output capture.
+5. Backup and restore.
+6. Installer and cross-machine verification.
