@@ -190,11 +190,14 @@ Automated tests:
 
 - Snapshot manifest.
 - Checksum validation.
-- Restore one matter.
+- Encrypted database backup artifact.
+- Restore drill hash validation.
+- Restore drill database decryptability check.
 
 Manual verification:
 
 - Restore test succeeds in temporary folder.
+- Backup folder does not contain a plain SQLite database copy.
 
 ## Slice 11: Installer and Cross-Machine Test
 

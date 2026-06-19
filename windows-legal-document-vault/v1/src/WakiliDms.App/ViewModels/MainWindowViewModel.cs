@@ -1,5 +1,7 @@
+using System.IO;
 using System.Windows.Input;
 using System.Collections.ObjectModel;
+using WakiliDms.Core.Backup;
 using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
@@ -14,6 +16,7 @@ namespace WakiliDms.App.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
+    private readonly string _databasePath;
     private readonly ISettingsStore _settingsStore;
     private readonly IMatterRepository _matterRepository;
     private readonly IDocumentRepository _documentRepository;
@@ -26,6 +29,8 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly DocumentIndexingService _documentIndexingService;
     private readonly FilingPackExportService _filingPackExportService;
     private readonly CourtOutputCaptureService _courtOutputCaptureService;
+    private readonly BackupSnapshotService _backupSnapshotService;
+    private readonly RestoreDrillService _restoreDrillService;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
     private string _vaultPath = string.Empty;
@@ -39,6 +44,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _importRecoveryKey = string.Empty;
     private string _filingPackExportRootPath = string.Empty;
     private string _courtOutputSourceFilePath = string.Empty;
+    private string _backupRecoveryKey = string.Empty;
     private string _searchQuery = string.Empty;
     private DocumentType _selectedCourtOutputType = DocumentType.FilingReceipt;
     private MatterListItemViewModel? _selectedMatter;
@@ -51,6 +57,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _statusMessage = "Complete setup to create a local-first document vault.";
 
     public MainWindowViewModel(
+        string databasePath,
         ISettingsStore settingsStore,
         IMatterRepository matterRepository,
         IDocumentRepository documentRepository,
@@ -60,6 +67,7 @@ public sealed class MainWindowViewModel : ObservableObject
         IDocumentTextExtractor documentTextExtractor,
         IVaultService vaultService)
     {
+        _databasePath = databasePath;
         _settingsStore = settingsStore;
         _matterRepository = matterRepository;
         _documentRepository = documentRepository;
@@ -72,6 +80,8 @@ public sealed class MainWindowViewModel : ObservableObject
         _documentIndexingService = new DocumentIndexingService(_documentRepository, _vaultService, documentTextExtractor, _documentSearchRepository);
         _filingPackExportService = new FilingPackExportService(_matterRepository, _documentRepository, _vaultService);
         _courtOutputCaptureService = new CourtOutputCaptureService(_documentImportService);
+        _backupSnapshotService = new BackupSnapshotService();
+        _restoreDrillService = new RestoreDrillService();
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
         ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
@@ -82,6 +92,7 @@ public sealed class MainWindowViewModel : ObservableObject
         SearchMatterCommand = new AsyncRelayCommand(SearchMatterAsync, () => IsSetupComplete && SelectedMatter is not null);
         ExportFilingPackCommand = new AsyncRelayCommand(ExportFilingPackAsync, () => IsSetupComplete && SelectedMatter is not null && Documents.Count > 0);
         CaptureCourtOutputCommand = new AsyncRelayCommand(CaptureCourtOutputAsync, () => IsSetupComplete && SelectedMatter is not null);
+        RunBackupCommand = new AsyncRelayCommand(RunBackupAsync, () => IsSetupComplete);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -178,6 +189,12 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _selectedCourtOutputType, value);
     }
 
+    public string BackupRecoveryKey
+    {
+        get => _backupRecoveryKey;
+        set => SetProperty(ref _backupRecoveryKey, value);
+    }
+
     public MatterListItemViewModel? SelectedMatter
     {
         get => _selectedMatter;
@@ -259,6 +276,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 (SearchMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (CaptureCourtOutputCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (RunBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -290,6 +308,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ICommand ExportFilingPackCommand { get; }
 
     public ICommand CaptureCourtOutputCommand { get; }
+
+    public ICommand RunBackupCommand { get; }
 
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
@@ -325,7 +345,8 @@ public sealed class MainWindowViewModel : ObservableObject
         "Classification and versioning",
         "OCR and search",
         "Filing-pack builder",
-        "Receipt and court-output capture"
+        "Receipt and court-output capture",
+        "Backup and restore drill"
     ];
 
     public async Task LoadAsync()
@@ -634,6 +655,37 @@ public sealed class MainWindowViewModel : ObservableObject
         CourtOutputSourceFilePath = string.Empty;
         StatusMessage = $"Captured {result.Value.DocumentType}: {result.Value.OriginalFileName}.";
         await ReloadDocumentsForSelectionAsync(result.Value.Id);
+    }
+
+    public async Task RunBackupAsync()
+    {
+        if (!IsSetupComplete)
+        {
+            StatusMessage = "Complete setup before running a backup.";
+            return;
+        }
+
+        var snapshot = await _backupSnapshotService.CreateSnapshotAsync(
+            new BackupSnapshotRequest(VaultPath, _databasePath, BackupTargetPath, BackupRecoveryKey),
+            CancellationToken.None);
+        if (!snapshot.Succeeded || snapshot.Value is null)
+        {
+            StatusMessage = snapshot.Error ?? "Backup snapshot failed.";
+            return;
+        }
+
+        var restoreTarget = Path.Combine(snapshot.Value.BackupDirectory, "restore-drill");
+        var drill = await _restoreDrillService.RunAsync(
+            new RestoreDrillRequest(snapshot.Value.BackupDirectory, restoreTarget, BackupRecoveryKey),
+            CancellationToken.None);
+        if (!drill.Succeeded || drill.Value is null)
+        {
+            StatusMessage = drill.Error ?? "Restore drill failed.";
+            return;
+        }
+
+        StatusMessage = $"Backup created and restore drill verified {drill.Value.VerifiedFileCount:N0} file(s) at {snapshot.Value.BackupDirectory}.";
+        BackupRecoveryKey = string.Empty;
     }
 
 

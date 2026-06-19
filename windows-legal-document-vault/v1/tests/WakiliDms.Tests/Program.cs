@@ -1,3 +1,4 @@
+using WakiliDms.Core.Backup;
 using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Documents;
@@ -36,7 +37,9 @@ var tests = new (string Name, Action Test)[]
     ("Text-like PDF extraction can be indexed and searched", TextLikePdfExtractionCanBeIndexedAndSearched),
     ("Filing pack export writes decrypted copies and manifest", FilingPackExportWritesDecryptedCopiesAndManifest),
     ("Court output capture stores filing receipt under matter", CourtOutputCaptureStoresFilingReceiptUnderMatter),
-    ("Court output capture rejects non-output document type", CourtOutputCaptureRejectsNonOutputDocumentType)
+    ("Court output capture rejects non-output document type", CourtOutputCaptureRejectsNonOutputDocumentType),
+    ("Backup snapshot copies encrypted vault and database with manifest", BackupSnapshotCopiesEncryptedVaultAndDatabaseWithManifest),
+    ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles)
 };
 
 var failures = 0;
@@ -884,6 +887,116 @@ static void CourtOutputCaptureRejectsNonOutputDocumentType()
         CancellationToken.None).GetAwaiter().GetResult();
 
     Assert(!result.Succeeded, "Court output capture should reject pleading document type.");
+}
+
+static void BackupSnapshotCopiesEncryptedVaultAndDatabaseWithManifest()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var sourcePath = Path.Combine(tempRoot, "affidavit.docx");
+    var recoveryKey = "backup snapshot recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Backup snapshot affidavit content must remain encrypted at rest.");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+
+        var service = new BackupSnapshotService();
+        var result = service.CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(result.Succeeded, result.Error ?? "Backup snapshot failed.");
+        Assert(result.Value is not null, "Backup snapshot result should be returned.");
+        Assert(Directory.Exists(result.Value!.BackupDirectory), "Backup directory should exist.");
+        Assert(File.Exists(result.Value.ManifestPath), "Backup manifest should exist.");
+        Assert(result.Value.BackedUpFileCount >= 3, "Backup should include vault manifest, vault object, and database.");
+        Assert(File.Exists(Path.Combine(result.Value.BackupDirectory, "data", "wakili-dms.db.backup")), "Backup should include the encrypted SQLite database artifact.");
+        Assert(!File.Exists(Path.Combine(result.Value.BackupDirectory, "data", "wakili-dms.db")), "Backup should not include a plain SQLite database copy.");
+
+        var manifestText = File.ReadAllText(result.Value.ManifestPath);
+        Assert(manifestText.Contains("\"kind\": \"encrypted-database\"", StringComparison.Ordinal), "Backup manifest should identify encrypted database entry.");
+        Assert(manifestText.Contains("\"kind\": \"vault\"", StringComparison.Ordinal), "Backup manifest should identify vault entries.");
+
+        var objectJson = Directory.GetFiles(Path.Combine(result.Value.BackupDirectory, "vault", "objects"), "*.json").Single();
+        Assert(!File.ReadAllText(objectJson).Contains("Backup snapshot affidavit content", StringComparison.Ordinal), "Backup should not contain decrypted document text.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var restoreTarget = Path.Combine(tempRoot, "restore-drill");
+    var sourcePath = Path.Combine(tempRoot, "ruling.pdf");
+    var recoveryKey = "restore drill recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nRestore drill ruling content\n%%EOF");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var drill = new RestoreDrillService().RunAsync(
+            new RestoreDrillRequest(snapshot.Value!.BackupDirectory, restoreTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(drill.Succeeded, drill.Error ?? "Restore drill failed.");
+        Assert(drill.Value is not null, "Restore drill result should be returned.");
+        Assert(drill.Value!.VerifiedFileCount == snapshot.Value.BackedUpFileCount, "Restore drill should verify every backed-up file.");
+        Assert(File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db.backup")), "Restore drill should copy encrypted database artifact.");
+        Assert(!File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db")), "Restore drill should not leave a plain database file.");
+        Assert(Directory.GetFiles(Path.Combine(restoreTarget, "vault", "objects"), "*.json").Length == 1, "Restore drill should copy vault object files.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void ImportOneDocumentForBackup(
+    string dbPath,
+    string vaultPath,
+    string sourcePath,
+    string recoveryKey)
+{
+    var matterRepository = new SqliteMatterRepository(dbPath);
+    var documentRepository = new SqliteDocumentRepository(dbPath);
+    var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
+    var vault = new EncryptedVaultService();
+    matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+    documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+    documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+    vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+    var matter = Matter.Create("Backup Test Matter");
+    matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+    var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
+    var imported = importService.ImportAsync(
+        new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Affidavit),
+        CancellationToken.None).GetAwaiter().GetResult();
+    Assert(imported.Succeeded, imported.Error ?? "Backup fixture import failed.");
 }
 
 static AppSettings ValidSettings()

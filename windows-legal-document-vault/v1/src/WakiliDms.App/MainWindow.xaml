@@ -238,6 +238,14 @@
                             HorizontalAlignment="Left"
                             Padding="18,8"
                             Margin="0,10,0,0" />
+
+                    <TextBlock Text="Backup and restore drill" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
+                    <TextBlock Text="Recovery key" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding BackupRecoveryKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Content="Run backup and restore drill"
+                            Command="{Binding RunBackupCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8" />
                 </StackPanel>
             </Border>
 
@@ -254,7 +262,7 @@
                                    FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="#111827" />
-                        <TextBlock Text="Setup, encrypted vault, matter management, document import, and scan inbox are active."
+                        <TextBlock Text="Setup, encrypted vault, matter management, document import, scan inbox, OCR/search, filing pack, court-output capture, and backup checks are active."
                                    TextWrapping="Wrap"
                                    Foreground="#374151"
                                    Margin="0,10,0,0" />
