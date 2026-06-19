@@ -1,0 +1,37 @@
+name: Repository Governance
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - dev
+  pull_request:
+    branches:
+      - main
+      - master
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  structure-and-docs:
+    name: Product Structure and Documentation
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate product/version structure
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Assert-ProductStructure.ps1
+
+      - name: Validate markdown links
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Test-MarkdownLinks.ps1
+
+      - name: Reject legacy numbered product labels
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Test-NoLegacySolutionLabels.ps1

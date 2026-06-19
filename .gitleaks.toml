@@ -1,0 +1,16 @@
+title = "Wakili Ops Secret Leak Rules"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow synthetic documentation and test placeholders only."
+paths = [
+  '''windows-legal-document-vault/v1/documentation/.*'''
+]
+regexes = [
+  '''LICENSE-KEY''',
+  '''guid''',
+  '''HEX_HASH'''
+]
+
