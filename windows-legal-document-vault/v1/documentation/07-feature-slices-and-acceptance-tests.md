@@ -210,3 +210,30 @@ Manual verification:
 - Install on clean Windows machine.
 - Create or restore vault.
 - Open matter and document.
+
+## Slice 12: Admin Install Telemetry and Disable Flow
+
+Goal:
+
+- Track installed app IDs and support owner-controlled enable/disable states.
+
+Automated tests:
+
+- Installation ID generation and preservation.
+- Sanitized check-in payload excludes matter, document, path, OCR, and case details.
+- Admin registry can upsert check-ins.
+- Admin registry can enable and disable an installation ID.
+- Admin registry delete does not delete local vault data.
+
+Manual verification:
+
+- App setup shows installation identity fields.
+- Home screen shows installation ID and license status.
+- Owner admin console lists installation records from a registry file.
+- Owner admin console can enable, disable, and delete registry records.
+
+## Slice 13: Optional Cloud-Backup Provider Adapter
+
+Goal:
+
+- Add a provider interface for opt-in encrypted snapshot upload.

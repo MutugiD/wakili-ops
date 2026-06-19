@@ -23,6 +23,48 @@ Admin can:
 - See backup-health summary if cloud backup is enabled.
 - Add support notes.
 
+## Current V1 Implementation
+
+Implemented in code:
+
+- Installation ID generation and preservation in local app settings.
+- License key and device nickname capture during setup.
+- License status display in the Windows app.
+- Local disabled/revoked gate for license-gated app actions.
+- Sanitized check-in payload contract that excludes document and matter details.
+- Owner admin console project at `src/WakiliDms.Admin`.
+- File-backed admin registry for local/dev operation.
+- Admin commands to list, check in, enable, disable, and delete installation registry records.
+
+Not yet implemented:
+
+- Hosted admin dashboard.
+- Admin authentication/MFA.
+- Remote check-in API.
+- Payment provider integration.
+- Automatic license sync into installed apps.
+
+The V1 console is a tested contract and operations scaffold. It is not a hosted production control plane yet.
+
+## Owner Admin Console
+
+From the V1 app root:
+
+```powershell
+dotnet run --project src\WakiliDms.Admin\WakiliDms.Admin.csproj -- list --registry D:\admin\wakili-installations.json
+```
+
+Supported commands:
+
+```powershell
+dotnet run --project src\WakiliDms.Admin\WakiliDms.Admin.csproj -- checkin --registry D:\admin\wakili-installations.json --payload D:\admin\checkin.json --notes "Initial install"
+dotnet run --project src\WakiliDms.Admin\WakiliDms.Admin.csproj -- enable --registry D:\admin\wakili-installations.json --installation-id <guid>
+dotnet run --project src\WakiliDms.Admin\WakiliDms.Admin.csproj -- disable --registry D:\admin\wakili-installations.json --installation-id <guid>
+dotnet run --project src\WakiliDms.Admin\WakiliDms.Admin.csproj -- delete --registry D:\admin\wakili-installations.json --installation-id <guid>
+```
+
+Deleting an admin registry record does not delete the user vault, local app settings, backups, documents, or metadata.
+
 Admin cannot:
 
 - View client documents.
@@ -211,4 +253,3 @@ Admin/licensing is acceptable when:
 - Disabled license stops paid/online features.
 - Local vault data remains intact.
 - Admin dashboard cannot inspect client documents.
-

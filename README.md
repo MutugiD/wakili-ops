@@ -32,6 +32,7 @@ Current status:
 - Encrypted vault service is implemented.
 - SQLite matter management is implemented.
 - Functional/security test harness is active.
+- Local owner admin install-control scaffold is implemented.
 
 ### Phase 2: Local Matter RAG Connector
 
