@@ -4,6 +4,7 @@ using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Matter;
 using WakiliDms.Core.Scan;
+using WakiliDms.Core.Search;
 using WakiliDms.Core.Setup;
 using WakiliDms.Core.Vault;
 
@@ -16,9 +17,11 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly IDocumentRepository _documentRepository;
     private readonly IDocumentVersionRepository _documentVersionRepository;
     private readonly IScanInboxRepository _scanInboxRepository;
+    private readonly IDocumentSearchRepository _documentSearchRepository;
     private readonly IVaultService _vaultService;
     private readonly DocumentImportService _documentImportService;
     private readonly ScanFolderService _scanFolderService;
+    private readonly DocumentIndexingService _documentIndexingService;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
     private string _vaultPath = string.Empty;
@@ -30,6 +33,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _newMatterCourtCaseNumber = string.Empty;
     private string _importSourceFilePath = string.Empty;
     private string _importRecoveryKey = string.Empty;
+    private string _searchQuery = string.Empty;
     private MatterListItemViewModel? _selectedMatter;
     private DocumentListItemViewModel? _selectedDocument;
     private DocumentType _selectedDocumentType = DocumentType.Unknown;
@@ -45,6 +49,8 @@ public sealed class MainWindowViewModel : ObservableObject
         IDocumentRepository documentRepository,
         IDocumentVersionRepository documentVersionRepository,
         IScanInboxRepository scanInboxRepository,
+        IDocumentSearchRepository documentSearchRepository,
+        IDocumentTextExtractor documentTextExtractor,
         IVaultService vaultService)
     {
         _settingsStore = settingsStore;
@@ -52,15 +58,19 @@ public sealed class MainWindowViewModel : ObservableObject
         _documentRepository = documentRepository;
         _documentVersionRepository = documentVersionRepository;
         _scanInboxRepository = scanInboxRepository;
+        _documentSearchRepository = documentSearchRepository;
         _vaultService = vaultService;
         _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _documentVersionRepository, _vaultService);
         _scanFolderService = new ScanFolderService(_scanInboxRepository);
+        _documentIndexingService = new DocumentIndexingService(_documentRepository, _vaultService, documentTextExtractor, _documentSearchRepository);
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
         ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
         RefreshScanFolderCommand = new AsyncRelayCommand(RefreshScanFolderAsync, () => IsSetupComplete);
         ImportSelectedScanCommand = new AsyncRelayCommand(ImportSelectedScanAsync, () => IsSetupComplete && SelectedMatter is not null && SelectedScan is not null);
         UpdateDocumentClassificationCommand = new AsyncRelayCommand(UpdateDocumentClassificationAsync, () => IsSetupComplete && SelectedDocument is not null);
+        IndexSelectedDocumentCommand = new AsyncRelayCommand(IndexSelectedDocumentAsync, () => IsSetupComplete && SelectedDocument is not null);
+        SearchMatterCommand = new AsyncRelayCommand(SearchMatterAsync, () => IsSetupComplete && SelectedMatter is not null);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -133,6 +143,12 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _importRecoveryKey, value);
     }
 
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set => SetProperty(ref _searchQuery, value);
+    }
+
     public MatterListItemViewModel? SelectedMatter
     {
         get => _selectedMatter;
@@ -173,6 +189,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 }
 
                 (UpdateDocumentClassificationCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (IndexSelectedDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 _ = ReloadVersionsForSelectionAsync();
             }
         }
@@ -209,6 +226,8 @@ public sealed class MainWindowViewModel : ObservableObject
                 (RefreshScanFolderCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (UpdateDocumentClassificationCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (IndexSelectedDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (SearchMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -233,6 +252,10 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand UpdateDocumentClassificationCommand { get; }
 
+    public ICommand IndexSelectedDocumentCommand { get; }
+
+    public ICommand SearchMatterCommand { get; }
+
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
     public ObservableCollection<DocumentListItemViewModel> Documents { get; } = [];
@@ -240,6 +263,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<DocumentVersionListItemViewModel> DocumentVersions { get; } = [];
 
     public ObservableCollection<ScanInboxItemViewModel> ScanInbox { get; } = [];
+
+    public ObservableCollection<DocumentSearchResultViewModel> SearchResults { get; } = [];
 
     public IReadOnlyList<DocumentType> DocumentTypeOptions { get; } = Enum.GetValues<DocumentType>();
 
@@ -252,7 +277,8 @@ public sealed class MainWindowViewModel : ObservableObject
         "Matter management",
         "Document import",
         "Scan inbox",
-        "Classification and versioning"
+        "Classification and versioning",
+        "OCR and search"
     ];
 
     public async Task LoadAsync()
@@ -261,6 +287,7 @@ public sealed class MainWindowViewModel : ObservableObject
         await _documentRepository.InitializeAsync(CancellationToken.None);
         await _documentVersionRepository.InitializeAsync(CancellationToken.None);
         await _scanInboxRepository.InitializeAsync(CancellationToken.None);
+        await _documentSearchRepository.InitializeAsync(CancellationToken.None);
 
         var settings = await _settingsStore.LoadAsync(CancellationToken.None);
         if (settings is null || settings.SetupCompletedAt is null)
@@ -461,6 +488,49 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             StatusMessage = ex.Message;
         }
+    }
+
+    public async Task IndexSelectedDocumentAsync()
+    {
+        if (SelectedDocument is null)
+        {
+            StatusMessage = "Select a document before indexing text.";
+            return;
+        }
+
+        var result = await _documentIndexingService.IndexDocumentAsync(
+            SelectedDocument.Id,
+            VaultPath,
+            ImportRecoveryKey,
+            CancellationToken.None);
+        if (!result.Succeeded)
+        {
+            StatusMessage = result.Error ?? "Document text indexing failed.";
+            return;
+        }
+
+        StatusMessage = $"Indexed {result.Value:N0} searchable characters from {SelectedDocument.OriginalFileName}.";
+    }
+
+    public async Task SearchMatterAsync()
+    {
+        SearchResults.Clear();
+        if (SelectedMatter is null)
+        {
+            StatusMessage = "Select a matter before searching.";
+            return;
+        }
+
+        var results = await _documentSearchRepository.SearchAsync(
+            SelectedMatter.Id,
+            SearchQuery,
+            CancellationToken.None);
+        foreach (var result in results)
+        {
+            SearchResults.Add(new DocumentSearchResultViewModel(result));
+        }
+
+        StatusMessage = $"Search returned {results.Count:N0} result(s).";
     }
 
 

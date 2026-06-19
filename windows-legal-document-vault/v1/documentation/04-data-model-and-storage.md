@@ -96,6 +96,18 @@ Fields:
 
 Scan inbox rows represent files detected in the configured watched scan folder before they are attached to a matter. The inbox stores metadata only; document bytes remain in the scan folder until the user imports the pending scan into a matter, at which point the import service writes encrypted bytes into the vault.
 
+### DocumentTextIndex
+
+Fields:
+
+- `document_id`
+- `matter_id`
+- `original_file_name`
+- `text_content`
+- `indexed_at`
+
+Slice 7 writes local extracted text to SQLite and mirrors it into an FTS5 virtual table for matter-scoped search. The index remains local to the Windows machine and is rebuilt from encrypted vault objects when needed.
+
 ### FilingPack
 
 Fields:

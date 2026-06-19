@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 7: OCR and search.
+Slice 8: filing-pack builder.
 
 Completed:
 
@@ -39,6 +39,12 @@ Completed:
 - SQLite document version repository.
 - Selected-document version list UI.
 - Classification/versioning tests.
+- Local DOCX and text-like PDF extraction.
+- SQLite FTS matter search repository.
+- Selected-document indexing UI.
+- Matter-scoped search UI.
+- OCR/search tests.
+- Windows app startup smoke script.
 
 ## SDK Requirement
 
@@ -61,8 +67,8 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 5. Slice 4: document import.
 6. Slice 5: watched scan folder.
 7. Slice 6: classification and versioning.
-8. Slice 7: OCR and search. Current next slice.
-9. Slice 8: filing-pack builder.
+8. Slice 7: OCR and search.
+9. Slice 8: filing-pack builder. Current next slice.
 10. Slice 9: receipt and court-output capture.
 11. Slice 10: backup and restore.
 12. Slice 11: installer and cross-machine test.

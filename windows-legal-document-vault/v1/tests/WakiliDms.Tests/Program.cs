@@ -2,9 +2,11 @@ using WakiliDms.Core.Domain;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Setup;
 using WakiliDms.Core.Scan;
+using WakiliDms.Core.Search;
 using WakiliDms.Infrastructure.Documents;
 using WakiliDms.Infrastructure.Matter;
 using WakiliDms.Infrastructure.Scan;
+using WakiliDms.Infrastructure.Search;
 using WakiliDms.Infrastructure.Settings;
 using WakiliDms.Infrastructure.Vault;
 
@@ -26,7 +28,10 @@ var tests = new (string Name, Action Test)[]
     ("Scan inbox import marks pending scan imported", ScanInboxImportMarksPendingScanImported),
     ("Document import creates initial version metadata", DocumentImportCreatesInitialVersionMetadata),
     ("Document classification updates type and status", DocumentClassificationUpdatesTypeAndStatus),
-    ("Filed document classification is immutable", FiledDocumentClassificationIsImmutable)
+    ("Filed document classification is immutable", FiledDocumentClassificationIsImmutable),
+    ("DOCX text extractor returns searchable body text", DocxTextExtractorReturnsSearchableBodyText),
+    ("Document indexing searches encrypted DOCX by matter", DocumentIndexingSearchesEncryptedDocxByMatter),
+    ("Text-like PDF extraction can be indexed and searched", TextLikePdfExtractionCanBeIndexedAndSearched)
 };
 
 var failures = 0;
@@ -596,6 +601,151 @@ static void FiledDocumentClassificationIsImmutable()
     }
 
     Assert(threw, "Filed document classification should be immutable.");
+}
+
+static void DocxTextExtractorReturnsSearchableBodyText()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var sourcePath = Path.Combine(tempRoot, "draft-submissions.docx");
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Urgent injunction submissions for land parcel Nairobi Block 42.");
+
+        var extractor = new LocalDocumentTextExtractor();
+        var result = extractor.ExtractTextAsync(
+            sourcePath,
+            File.ReadAllBytes(sourcePath),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(result.Succeeded, result.Error ?? "DOCX extraction failed.");
+        Assert(result.Value is not null, "Extracted DOCX text should be returned.");
+        Assert(result.Value!.Contains("Urgent injunction submissions", StringComparison.OrdinalIgnoreCase), "DOCX body text should be searchable.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void DocumentIndexingSearchesEncryptedDocxByMatter()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var sourcePath = Path.Combine(tempRoot, "supporting-affidavit.docx");
+    var recoveryKey = "search indexing recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Supporting affidavit mentions Kileleshwa lease dispute and rent arrears.");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
+        var searchRepository = new SqliteDocumentSearchRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        searchRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Lease Dispute");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
+        var imported = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Affidavit),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(imported.Succeeded, imported.Error ?? "DOCX import failed.");
+        Assert(imported.Value is not null, "Imported DOCX should be returned.");
+
+        var indexingService = new DocumentIndexingService(
+            documentRepository,
+            vault,
+            new LocalDocumentTextExtractor(),
+            searchRepository);
+        var indexed = indexingService.IndexDocumentAsync(
+            imported.Value!.Id,
+            vaultPath,
+            recoveryKey,
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(indexed.Succeeded, indexed.Error ?? "Document indexing failed.");
+
+        var results = searchRepository.SearchAsync(matter.Id, "Kileleshwa arrears", CancellationToken.None).GetAwaiter().GetResult();
+        Assert(results.Count == 1, "Matter search should return the indexed DOCX.");
+        Assert(results[0].OriginalFileName == "supporting-affidavit.docx", "Search result should identify the source document.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void TextLikePdfExtractionCanBeIndexedAndSearched()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var sourcePath = Path.Combine(tempRoot, "ruling.pdf");
+    var recoveryKey = "pdf search recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nBT (Court ruling grants conservatory orders) Tj ET\n%%EOF");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
+        var searchRepository = new SqliteDocumentSearchRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        searchRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Constitutional Petition");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
+        var imported = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Ruling),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(imported.Succeeded, imported.Error ?? "PDF import failed.");
+
+        var indexingService = new DocumentIndexingService(
+            documentRepository,
+            vault,
+            new LocalDocumentTextExtractor(),
+            searchRepository);
+        var indexed = indexingService.IndexDocumentAsync(
+            imported.Value!.Id,
+            vaultPath,
+            recoveryKey,
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(indexed.Succeeded, indexed.Error ?? "PDF indexing failed.");
+
+        var results = searchRepository.SearchAsync(matter.Id, "conservatory orders", CancellationToken.None).GetAwaiter().GetResult();
+        Assert(results.Count == 1, "Matter search should return the indexed text-like PDF.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
 }
 
 static AppSettings ValidSettings()

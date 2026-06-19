@@ -3,8 +3,10 @@ using WakiliDms.App.ViewModels;
 using WakiliDms.Infrastructure.Documents;
 using WakiliDms.Infrastructure.Matter;
 using WakiliDms.Infrastructure.Scan;
+using WakiliDms.Infrastructure.Search;
 using WakiliDms.Infrastructure.Settings;
 using WakiliDms.Infrastructure.Vault;
+using WakiliDms.Core.Search;
 
 namespace WakiliDms.App;
 
@@ -19,6 +21,8 @@ public partial class App : Application
         var documentRepository = new SqliteDocumentRepository(DefaultAppPaths.DatabasePath());
         var documentVersionRepository = new SqliteDocumentVersionRepository(DefaultAppPaths.DatabasePath());
         var scanInboxRepository = new SqliteScanInboxRepository(DefaultAppPaths.DatabasePath());
+        var documentSearchRepository = new SqliteDocumentSearchRepository(DefaultAppPaths.DatabasePath());
+        var documentTextExtractor = new LocalDocumentTextExtractor();
         var vaultService = new EncryptedVaultService();
         var viewModel = new MainWindowViewModel(
             settingsStore,
@@ -26,6 +30,8 @@ public partial class App : Application
             documentRepository,
             documentVersionRepository,
             scanInboxRepository,
+            documentSearchRepository,
+            documentTextExtractor,
             vaultService);
         await viewModel.LoadAsync();
 

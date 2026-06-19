@@ -21,7 +21,7 @@ This log tracks V1 planning and implementation progress.
 | 4 | Document import | Complete | Manual DOC, DOCX, and PDF import into selected matter with supported file checks, encrypted vault storage, hash metadata, SQLite document registration, and UI matter document list. |
 | 5 | Watched scan folder | Complete | On-demand watched folder refresh queues supported DOC, DOCX, and PDF files into a pending scan inbox, ignores unsupported files, avoids duplicate queue entries, and imports selected scans into selected matters. |
 | 6 | Classification and versioning | Complete | Document type/status editing, filed/served immutability, initial version metadata on import, SQLite document version storage, and selected-document version list UI. |
-| 7 | OCR and search | Planned | Local OCR adapter and SQLite FTS. |
+| 7 | OCR and search | Complete | Local DOCX/text-like PDF extraction, encrypted-vault indexing, SQLite FTS matter search, selected-document indexing UI, and matter search UI. |
 | 8 | Filing-pack builder | Planned | Manual e-filing export package. |
 | 9 | Receipt and court-output capture | Planned | Attach receipts, notices, orders, registry messages. |
 | 10 | Backup and restore | Planned | Encrypted snapshots and restore drill. |
