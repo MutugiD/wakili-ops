@@ -1,0 +1,207 @@
+<Window x:Class="WakiliDms.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Windows Legal Document Vault"
+        Width="1040"
+        Height="720"
+        MinWidth="840"
+        MinHeight="560">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
+
+    <Grid Background="#F8FAFC">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Background="#111827" Padding="24,18">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}"
+                           Foreground="White"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Subtitle}"
+                           Foreground="#CBD5E1"
+                           Margin="0,6,0,0" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="24"
+              Visibility="{Binding IsSetupRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Background="White"
+                    BorderBrush="#D1D5DB"
+                    BorderThickness="1"
+                    Padding="20"
+                    CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="First-run setup"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#111827" />
+                    <TextBlock Text="Create the local-first settings needed before the encrypted vault module starts."
+                               TextWrapping="Wrap"
+                               Foreground="#374151"
+                               Margin="0,10,0,0" />
+
+                    <TextBlock Text="Firm name" Margin="0,18,0,4" />
+                    <TextBox Text="{Binding FirmName, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Primary user" Margin="0,12,0,4" />
+                    <TextBox Text="{Binding PrimaryUser, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Vault path" Margin="0,12,0,4" />
+                    <TextBox Text="{Binding VaultPath, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Watched scan folder" Margin="0,12,0,4" />
+                    <TextBox Text="{Binding ScanFolderPath, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Backup target folder" Margin="0,12,0,4" />
+                    <TextBox Text="{Binding BackupTargetPath, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <CheckBox Content="I have saved the recovery key details for this vault."
+                              IsChecked="{Binding RecoveryKeyConfirmed}"
+                              Margin="0,16,0,0" />
+
+                    <Button Content="Complete setup"
+                            Command="{Binding CompleteSetupCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,18,0,0" />
+
+                    <TextBlock Text="{Binding StatusMessage}"
+                               TextWrapping="Wrap"
+                               Foreground="#B45309"
+                               Margin="0,14,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1"
+                    Background="White"
+                    BorderBrush="#D1D5DB"
+                    BorderThickness="1"
+                    Padding="20"
+                    Margin="20,0,0,0"
+                    CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="Next modules"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#111827" />
+                    <TextBlock Text="After setup is persisted, the next slice creates and unlocks the encrypted vault."
+                               TextWrapping="Wrap"
+                               Foreground="#374151"
+                               Margin="0,10,0,10" />
+                    <ItemsControl ItemsSource="{Binding NextModules}" Margin="0,10,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           Foreground="#374151"
+                                           Margin="0,0,0,6" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="24"
+              Visibility="{Binding IsSetupComplete, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Background="White"
+                    BorderBrush="#D1D5DB"
+                    BorderThickness="1"
+                    Padding="20"
+                    CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="Home"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#111827" />
+                    <TextBlock Text="{Binding StatusMessage}"
+                               TextWrapping="Wrap"
+                               Foreground="#374151"
+                               Margin="0,10,0,0" />
+
+                    <TextBlock Text="Vault path" FontWeight="SemiBold" Margin="0,18,0,4" />
+                    <TextBlock Text="{Binding VaultPath}" TextWrapping="Wrap" Foreground="#374151" />
+
+                    <TextBlock Text="Watched scan folder" FontWeight="SemiBold" Margin="0,12,0,4" />
+                    <TextBlock Text="{Binding ScanFolderPath}" TextWrapping="Wrap" Foreground="#374151" />
+
+                    <TextBlock Text="Backup target" FontWeight="SemiBold" Margin="0,12,0,4" />
+                    <TextBlock Text="{Binding BackupTargetPath}" TextWrapping="Wrap" Foreground="#374151" />
+
+                    <TextBlock Text="Create matter" FontSize="16" FontWeight="SemiBold" Margin="0,24,0,8" />
+                    <TextBlock Text="Matter name" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding NewMatterName, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Client name" Margin="0,10,0,4" />
+                    <TextBox Text="{Binding NewMatterClientName, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Court case number" Margin="0,10,0,4" />
+                    <TextBox Text="{Binding NewMatterCourtCaseNumber, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <Button Content="Create matter"
+                            Command="{Binding CreateMatterCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,14,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1"
+                    Background="White"
+                    BorderBrush="#D1D5DB"
+                    BorderThickness="1"
+                    Padding="20"
+                    Margin="20,0,0,0"
+                    CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="Current status"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#111827" />
+                    <TextBlock Text="Setup and encrypted vault are complete. Matter management is active."
+                               TextWrapping="Wrap"
+                               Foreground="#374151"
+                               Margin="0,10,0,0" />
+
+                    <TextBlock Text="Matters"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="#111827"
+                               Margin="0,20,0,8" />
+                    <ItemsControl ItemsSource="{Binding Matters}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#E5E7EB"
+                                        BorderThickness="1"
+                                        Padding="10"
+                                        Margin="0,0,0,8"
+                                        CornerRadius="4">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#111827" />
+                                        <TextBlock Text="{Binding ClientName}" Foreground="#374151" Margin="0,4,0,0" />
+                                        <TextBlock Text="{Binding CourtCaseNumber}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                        <TextBlock Text="{Binding UpdatedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

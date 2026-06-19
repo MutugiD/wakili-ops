@@ -1,0 +1,82 @@
+name: Windows Legal Document Vault V1 CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - dev
+    paths:
+      - "windows-legal-document-vault/v1/**"
+      - ".github/workflows/windows-legal-document-vault-v1-ci.yml"
+      - ".gitleaks.toml"
+  pull_request:
+    branches:
+      - main
+      - master
+      - dev
+    paths:
+      - "windows-legal-document-vault/v1/**"
+      - ".github/workflows/windows-legal-document-vault-v1-ci.yml"
+      - ".gitleaks.toml"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  build-test-security:
+    name: Build, Test, and Security Gates
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: windows-legal-document-vault/v1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Show .NET info
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore WakiliDms.sln
+
+      - name: Code style check
+        run: dotnet format WakiliDms.sln --verify-no-changes --verbosity minimal
+
+      - name: Build
+        run: dotnet build WakiliDms.sln --configuration Release --no-restore
+
+      - name: Run functional and security test harness
+        run: dotnet run --configuration Release --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj --no-build
+
+      - name: Dependency vulnerability scan
+        run: dotnet list WakiliDms.sln package --include-transitive --vulnerable
+
+      - name: Secret leak scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: App startup smoke
+        run: |
+          $project = Join-Path (Get-Location) "src\WakiliDms.App\WakiliDms.App.csproj"
+          $proc = Start-Process -FilePath "dotnet" -ArgumentList @("run","--configuration","Release","--project",$project,"--no-build") -WindowStyle Hidden -PassThru
+          Start-Sleep -Seconds 8
+          if (-not $proc.HasExited) {
+            Stop-Process -Id $proc.Id -Force
+            "PASS App startup smoke"
+          } else {
+            throw "App exited early with code $($proc.ExitCode)"
+          }
+
