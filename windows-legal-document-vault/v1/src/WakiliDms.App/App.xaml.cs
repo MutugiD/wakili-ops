@@ -17,12 +17,14 @@ public partial class App : Application
         var settingsStore = new JsonSettingsStore(DefaultAppPaths.SettingsPath());
         var matterRepository = new SqliteMatterRepository(DefaultAppPaths.DatabasePath());
         var documentRepository = new SqliteDocumentRepository(DefaultAppPaths.DatabasePath());
+        var documentVersionRepository = new SqliteDocumentVersionRepository(DefaultAppPaths.DatabasePath());
         var scanInboxRepository = new SqliteScanInboxRepository(DefaultAppPaths.DatabasePath());
         var vaultService = new EncryptedVaultService();
         var viewModel = new MainWindowViewModel(
             settingsStore,
             matterRepository,
             documentRepository,
+            documentVersionRepository,
             scanInboxRepository,
             vaultService);
         await viewModel.LoadAsync();

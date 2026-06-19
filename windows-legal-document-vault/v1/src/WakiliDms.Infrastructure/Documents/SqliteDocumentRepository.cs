@@ -155,6 +155,27 @@ public sealed class SqliteDocumentRepository : IDocumentRepository
         return await reader.ReadAsync(cancellationToken) ? ReadDocument(reader) : null;
     }
 
+    public async Task UpdateClassificationAsync(LegalDocument document, CancellationToken cancellationToken)
+    {
+        await using var connection = CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            UPDATE documents
+            SET
+                document_type = $document_type,
+                status = $status
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$document_type", (int)document.DocumentType);
+        command.Parameters.AddWithValue("$status", (int)document.Status);
+        command.Parameters.AddWithValue("$id", document.Id.ToString());
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private SqliteConnection CreateConnection()
     {
         return new SqliteConnection(new SqliteConnectionStringBuilder

@@ -118,11 +118,14 @@ Automated tests:
 
 - Status transition rules.
 - Filed/served immutability.
-- Audit events.
+- Classification persistence.
+- Initial document version metadata.
 
 Manual verification:
 
-- User marks a document approved, signed, filed, and sees version history.
+- User edits document type/status and sees the updated matter document list.
+- User selects a document and sees initial version history.
+- User cannot reclassify a filed or served document.
 
 ## Slice 7: OCR and Search
 

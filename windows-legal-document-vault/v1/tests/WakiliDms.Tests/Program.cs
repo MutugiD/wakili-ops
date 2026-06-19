@@ -23,7 +23,10 @@ var tests = new (string Name, Action Test)[]
     ("Document import accepts DOCX files and round trips vault bytes", DocumentImportAcceptsDocxAndRoundTripsVaultBytes),
     ("Document import rejects unsupported file types", DocumentImportRejectsUnsupportedFileTypes),
     ("Scan folder queues supported files once", ScanFolderQueuesSupportedFilesOnce),
-    ("Scan inbox import marks pending scan imported", ScanInboxImportMarksPendingScanImported)
+    ("Scan inbox import marks pending scan imported", ScanInboxImportMarksPendingScanImported),
+    ("Document import creates initial version metadata", DocumentImportCreatesInitialVersionMetadata),
+    ("Document classification updates type and status", DocumentClassificationUpdatesTypeAndStatus),
+    ("Filed document classification is immutable", FiledDocumentClassificationIsImmutable)
 };
 
 var failures = 0;
@@ -247,15 +250,17 @@ static void DocumentImportStoresPdfEncryptedAndRegistersMetadata()
 
         var matterRepository = new SqliteMatterRepository(dbPath);
         var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
         var vault = new EncryptedVaultService();
         matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
 
         var matter = Matter.Create("Jane Doe v Acme Ltd");
         matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
 
-        var service = new DocumentImportService(matterRepository, documentRepository, vault);
+        var service = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
         var result = service.ImportAsync(
             new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Pleading),
             CancellationToken.None).GetAwaiter().GetResult();
@@ -303,15 +308,17 @@ static void DocumentImportAcceptsDocxAndRoundTripsVaultBytes()
 
         var matterRepository = new SqliteMatterRepository(dbPath);
         var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
         var vault = new EncryptedVaultService();
         matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
 
         var matter = Matter.Create("Estate of Test Deceased");
         matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
 
-        var service = new DocumentImportService(matterRepository, documentRepository, vault);
+        var service = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
         var result = service.ImportAsync(
             new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Affidavit),
             CancellationToken.None).GetAwaiter().GetResult();
@@ -348,15 +355,17 @@ static void DocumentImportRejectsUnsupportedFileTypes()
 
         var matterRepository = new SqliteMatterRepository(dbPath);
         var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
         var vault = new EncryptedVaultService();
         matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
 
         var matter = Matter.Create("Test Matter");
         matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
 
-        var service = new DocumentImportService(matterRepository, documentRepository, vault);
+        var service = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
         var result = service.ImportAsync(
             new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey),
             CancellationToken.None).GetAwaiter().GetResult();
@@ -430,10 +439,12 @@ static void ScanInboxImportMarksPendingScanImported()
 
         var matterRepository = new SqliteMatterRepository(dbPath);
         var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
         var scanInboxRepository = new SqliteScanInboxRepository(dbPath);
         var vault = new EncryptedVaultService();
         matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         scanInboxRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
         vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
 
@@ -447,7 +458,7 @@ static void ScanInboxImportMarksPendingScanImported()
         var pending = scanInboxRepository.ListPendingAsync(CancellationToken.None).GetAwaiter().GetResult();
         Assert(pending.Count == 1, "Pending scan should be queued before import.");
 
-        var importService = new DocumentImportService(matterRepository, documentRepository, vault);
+        var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
         var imported = importService.ImportAsync(
             new DocumentImportRequest(matter.Id, pending[0].SourcePath, vaultPath, recoveryKey, DocumentType.Affidavit),
             CancellationToken.None).GetAwaiter().GetResult();
@@ -472,6 +483,119 @@ static void ScanInboxImportMarksPendingScanImported()
             Directory.Delete(tempRoot, recursive: true);
         }
     }
+}
+
+static void DocumentImportCreatesInitialVersionMetadata()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var sourcePath = Path.Combine(tempRoot, "submissions.pdf");
+    var recoveryKey = "version metadata recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nWritten submissions\n%%EOF");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Jane Doe v Acme Ltd");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
+        var imported = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Submission),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(imported.Succeeded, imported.Error ?? "Document import failed.");
+        Assert(imported.Value is not null, "Imported document should be returned.");
+
+        var versions = documentVersionRepository.ListByDocumentAsync(imported.Value!.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(versions.Count == 1, "Imported document should have one initial version.");
+        Assert(versions[0].VersionNumber == 1, "Initial version number should be 1.");
+        Assert(versions[0].VaultObjectId == imported.Value.VaultObjectId, "Initial version should reference the imported vault object.");
+        Assert(versions[0].Status == DocumentStatus.Imported, "Initial version should preserve imported status.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void DocumentClassificationUpdatesTypeAndStatus()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var repository = new SqliteDocumentRepository(dbPath);
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        repository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        var matter = Matter.Create("Classification Test Matter");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var document = LegalDocument.CreateImported(
+            matter.Id,
+            "draft-notice.pdf",
+            "vault-object-1",
+            new string('A', 64),
+            100,
+            DocumentType.Unknown);
+        repository.AddAsync(document, CancellationToken.None).GetAwaiter().GetResult();
+
+        var updated = document.WithClassification(DocumentType.Notice, DocumentStatus.Reviewed);
+        repository.UpdateClassificationAsync(updated, CancellationToken.None).GetAwaiter().GetResult();
+
+        var loaded = repository.GetAsync(document.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(loaded is not null, "Document should load after classification update.");
+        Assert(loaded!.DocumentType == DocumentType.Notice, "Document type should update.");
+        Assert(loaded.Status == DocumentStatus.Reviewed, "Document status should update.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void FiledDocumentClassificationIsImmutable()
+{
+    var document = LegalDocument.CreateImported(
+        Guid.NewGuid(),
+        "filed-plaint.pdf",
+        "vault-object-2",
+        new string('B', 64),
+        200,
+        DocumentType.Pleading);
+
+    var filed = document.WithClassification(DocumentType.Pleading, DocumentStatus.Filed);
+    var threw = false;
+
+    try
+    {
+        _ = filed.WithClassification(DocumentType.Pleading, DocumentStatus.Corrected);
+    }
+    catch (InvalidOperationException)
+    {
+        threw = true;
+    }
+
+    Assert(threw, "Filed document classification should be immutable.");
 }
 
 static AppSettings ValidSettings()

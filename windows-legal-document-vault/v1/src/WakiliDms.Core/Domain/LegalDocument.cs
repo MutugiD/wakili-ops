@@ -159,4 +159,24 @@ public sealed record LegalDocument
             status,
             importedAt);
     }
+
+    public LegalDocument WithClassification(DocumentType documentType, DocumentStatus status)
+    {
+        if (DocumentLifecycle.IsImmutable(Status) && (DocumentType != documentType || Status != status))
+        {
+            throw new InvalidOperationException("Filed and served documents cannot be reclassified.");
+        }
+
+        return new LegalDocument(
+            Id,
+            MatterId,
+            OriginalFileName,
+            Extension,
+            VaultObjectId,
+            Sha256Hash,
+            ByteLength,
+            documentType,
+            status,
+            ImportedAt);
+    }
 }
