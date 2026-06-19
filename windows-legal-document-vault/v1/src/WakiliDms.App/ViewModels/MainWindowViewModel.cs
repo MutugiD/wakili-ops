@@ -14,6 +14,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly ISettingsStore _settingsStore;
     private readonly IMatterRepository _matterRepository;
     private readonly IDocumentRepository _documentRepository;
+    private readonly IDocumentVersionRepository _documentVersionRepository;
     private readonly IScanInboxRepository _scanInboxRepository;
     private readonly IVaultService _vaultService;
     private readonly DocumentImportService _documentImportService;
@@ -30,6 +31,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _importSourceFilePath = string.Empty;
     private string _importRecoveryKey = string.Empty;
     private MatterListItemViewModel? _selectedMatter;
+    private DocumentListItemViewModel? _selectedDocument;
+    private DocumentType _selectedDocumentType = DocumentType.Unknown;
+    private DocumentStatus _selectedDocumentStatus = DocumentStatus.Imported;
     private ScanInboxItemViewModel? _selectedScan;
     private bool _recoveryKeyConfirmed;
     private bool _isSetupComplete;
@@ -39,21 +43,24 @@ public sealed class MainWindowViewModel : ObservableObject
         ISettingsStore settingsStore,
         IMatterRepository matterRepository,
         IDocumentRepository documentRepository,
+        IDocumentVersionRepository documentVersionRepository,
         IScanInboxRepository scanInboxRepository,
         IVaultService vaultService)
     {
         _settingsStore = settingsStore;
         _matterRepository = matterRepository;
         _documentRepository = documentRepository;
+        _documentVersionRepository = documentVersionRepository;
         _scanInboxRepository = scanInboxRepository;
         _vaultService = vaultService;
-        _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _vaultService);
+        _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _documentVersionRepository, _vaultService);
         _scanFolderService = new ScanFolderService(_scanInboxRepository);
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
         ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
         RefreshScanFolderCommand = new AsyncRelayCommand(RefreshScanFolderAsync, () => IsSetupComplete);
         ImportSelectedScanCommand = new AsyncRelayCommand(ImportSelectedScanAsync, () => IsSetupComplete && SelectedMatter is not null && SelectedScan is not null);
+        UpdateDocumentClassificationCommand = new AsyncRelayCommand(UpdateDocumentClassificationAsync, () => IsSetupComplete && SelectedDocument is not null);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -152,6 +159,37 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
+    public DocumentListItemViewModel? SelectedDocument
+    {
+        get => _selectedDocument;
+        set
+        {
+            if (SetProperty(ref _selectedDocument, value))
+            {
+                if (value is not null)
+                {
+                    SelectedDocumentType = value.RawDocumentType;
+                    SelectedDocumentStatus = value.RawStatus;
+                }
+
+                (UpdateDocumentClassificationCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                _ = ReloadVersionsForSelectionAsync();
+            }
+        }
+    }
+
+    public DocumentType SelectedDocumentType
+    {
+        get => _selectedDocumentType;
+        set => SetProperty(ref _selectedDocumentType, value);
+    }
+
+    public DocumentStatus SelectedDocumentStatus
+    {
+        get => _selectedDocumentStatus;
+        set => SetProperty(ref _selectedDocumentStatus, value);
+    }
+
     public bool RecoveryKeyConfirmed
     {
         get => _recoveryKeyConfirmed;
@@ -170,6 +208,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (RefreshScanFolderCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (UpdateDocumentClassificationCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -192,11 +231,19 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand ImportSelectedScanCommand { get; }
 
+    public ICommand UpdateDocumentClassificationCommand { get; }
+
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
     public ObservableCollection<DocumentListItemViewModel> Documents { get; } = [];
 
+    public ObservableCollection<DocumentVersionListItemViewModel> DocumentVersions { get; } = [];
+
     public ObservableCollection<ScanInboxItemViewModel> ScanInbox { get; } = [];
+
+    public IReadOnlyList<DocumentType> DocumentTypeOptions { get; } = Enum.GetValues<DocumentType>();
+
+    public IReadOnlyList<DocumentStatus> DocumentStatusOptions { get; } = Enum.GetValues<DocumentStatus>();
 
     public IReadOnlyList<string> NextModules { get; } =
     [
@@ -212,6 +259,7 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         await _matterRepository.InitializeAsync(CancellationToken.None);
         await _documentRepository.InitializeAsync(CancellationToken.None);
+        await _documentVersionRepository.InitializeAsync(CancellationToken.None);
         await _scanInboxRepository.InitializeAsync(CancellationToken.None);
 
         var settings = await _settingsStore.LoadAsync(CancellationToken.None);
@@ -387,6 +435,35 @@ public sealed class MainWindowViewModel : ObservableObject
         await ReloadDocumentsForSelectionAsync();
     }
 
+    public async Task UpdateDocumentClassificationAsync()
+    {
+        if (SelectedDocument is null)
+        {
+            StatusMessage = "Select a document before updating classification.";
+            return;
+        }
+
+        var document = await _documentRepository.GetAsync(SelectedDocument.Id, CancellationToken.None);
+        if (document is null)
+        {
+            StatusMessage = "Selected document was not found.";
+            return;
+        }
+
+        try
+        {
+            var updated = document.WithClassification(SelectedDocumentType, SelectedDocumentStatus);
+            await _documentRepository.UpdateClassificationAsync(updated, CancellationToken.None);
+            StatusMessage = $"Updated {updated.OriginalFileName} to {updated.DocumentType} / {updated.Status}.";
+            await ReloadDocumentsForSelectionAsync(updated.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusMessage = ex.Message;
+        }
+    }
+
+
     private async Task ReloadMattersAsync()
     {
         var selectedMatterId = SelectedMatter?.Id;
@@ -403,9 +480,11 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
-    private async Task ReloadDocumentsForSelectionAsync()
+    private async Task ReloadDocumentsForSelectionAsync(Guid? selectedDocumentId = null)
     {
+        var previousSelectedDocumentId = selectedDocumentId ?? SelectedDocument?.Id;
         Documents.Clear();
+        DocumentVersions.Clear();
         if (SelectedMatter is null)
         {
             return;
@@ -415,6 +494,26 @@ public sealed class MainWindowViewModel : ObservableObject
         foreach (var document in documents)
         {
             Documents.Add(new DocumentListItemViewModel(document));
+        }
+
+        if (previousSelectedDocumentId is not null)
+        {
+            SelectedDocument = Documents.FirstOrDefault(document => document.Id == previousSelectedDocumentId.Value);
+        }
+    }
+
+    private async Task ReloadVersionsForSelectionAsync()
+    {
+        DocumentVersions.Clear();
+        if (SelectedDocument is null)
+        {
+            return;
+        }
+
+        var versions = await _documentVersionRepository.ListByDocumentAsync(SelectedDocument.Id, CancellationToken.None);
+        foreach (var version in versions)
+        {
+            DocumentVersions.Add(new DocumentVersionListItemViewModel(version));
         }
     }
 

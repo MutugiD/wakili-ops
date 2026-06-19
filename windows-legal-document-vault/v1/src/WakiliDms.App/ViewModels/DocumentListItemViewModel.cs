@@ -11,6 +11,8 @@ public sealed class DocumentListItemViewModel
         Extension = document.Extension;
         DocumentType = document.DocumentType.ToString();
         Status = document.Status.ToString();
+        RawDocumentType = document.DocumentType;
+        RawStatus = document.Status;
         ByteLength = document.ByteLength.ToString("N0");
         ImportedAt = document.ImportedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm");
     }
@@ -24,6 +26,10 @@ public sealed class DocumentListItemViewModel
     public string DocumentType { get; }
 
     public string Status { get; }
+
+    public DocumentType RawDocumentType { get; }
+
+    public DocumentStatus RawStatus { get; }
 
     public string ByteLength { get; }
 

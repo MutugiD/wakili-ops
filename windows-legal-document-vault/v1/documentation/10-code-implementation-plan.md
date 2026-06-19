@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, 4, and 5 are complete.
+Slices 0, 1, 2, 3, 4, 5, and 6 are complete.
 
 Current code scaffold:
 
@@ -43,6 +43,10 @@ Current implemented behavior:
 - Watched scan folder refresh service.
 - Pending scan inbox UI.
 - Pending scan import into selected matter.
+- Document classification/status update flow.
+- Filed/served immutability guard.
+- Initial document version metadata on import.
+- Selected-document version list UI.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -185,19 +189,42 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - WPF app startup smoke.
 
-## Next Slice: Classification and Versioning
+## Completed Slice: Classification and Versioning
+
+Implemented:
+
+- Editable document type and lifecycle status.
+- Filed/served immutability at the document level.
+- Classification persistence in SQLite.
+- Initial document version metadata on import.
+- Document version repository and selected-document version list.
+- Tests for classification update, immutable filed document, and initial version metadata.
+
+Acceptance criteria:
+
+- User can select a matter document and update type/status.
+- Filed and served documents cannot be reclassified.
+- Imported documents get version 1 metadata.
+- User can see version metadata for the selected document.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- WPF app startup smoke.
+
+## Next Slice: OCR and Search
 
 Build next:
 
-- Editable document type and lifecycle status.
-- Status transition rules in the document domain.
-- Filed/served immutability at the document level.
-- Basic version metadata for amended/corrected documents.
+- Local text extraction adapter for DOCX and text-like PDFs.
+- OCR status metadata.
+- SQLite FTS table for searchable document text.
+- Matter-scoped search UI.
 
 ## Following Slices
 
-1. OCR and search.
-2. Filing-pack builder.
-3. Receipt and court-output capture.
-4. Backup and restore.
-5. Installer and cross-machine verification.
+1. Filing-pack builder.
+2. Receipt and court-output capture.
+3. Backup and restore.
+4. Installer and cross-machine verification.

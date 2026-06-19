@@ -77,6 +77,8 @@ Fields:
 - `created_at`
 - `notes`
 
+Slice 6 creates the initial version record when a document is imported. Later document amendment flows can append version 2+ records while keeping filed and served versions immutable.
+
 ### ScanInboxItem
 
 Fields:

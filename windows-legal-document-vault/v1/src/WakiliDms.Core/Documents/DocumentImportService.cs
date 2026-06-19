@@ -9,15 +9,18 @@ public sealed class DocumentImportService
 {
     private readonly IMatterRepository _matterRepository;
     private readonly IDocumentRepository _documentRepository;
+    private readonly IDocumentVersionRepository _documentVersionRepository;
     private readonly IVaultService _vaultService;
 
     public DocumentImportService(
         IMatterRepository matterRepository,
         IDocumentRepository documentRepository,
+        IDocumentVersionRepository documentVersionRepository,
         IVaultService vaultService)
     {
         _matterRepository = matterRepository;
         _documentRepository = documentRepository;
+        _documentVersionRepository = documentVersionRepository;
         _vaultService = vaultService;
     }
 
@@ -64,6 +67,7 @@ public sealed class DocumentImportService
             stored.Value.CreatedAt);
 
         await _documentRepository.AddAsync(document, cancellationToken);
+        await _documentVersionRepository.AddAsync(DocumentVersion.CreateInitial(document), cancellationToken);
         return Result<LegalDocument>.Ok(document);
     }
 

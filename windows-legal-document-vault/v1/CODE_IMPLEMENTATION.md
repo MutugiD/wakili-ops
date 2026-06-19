@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 6: classification and versioning.
+Slice 7: OCR and search.
 
 Completed:
 
@@ -33,6 +33,12 @@ Completed:
 - Pending scan inbox UI.
 - Import selected scan into selected matter.
 - Scan inbox tests for queueing, duplicate detection, unsupported file ignore, and pending scan import.
+- Document type/status editing.
+- Filed/served immutability at document classification level.
+- Initial document version metadata on import.
+- SQLite document version repository.
+- Selected-document version list UI.
+- Classification/versioning tests.
 
 ## SDK Requirement
 
@@ -54,8 +60,8 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 4. Slice 3: matter management.
 5. Slice 4: document import.
 6. Slice 5: watched scan folder.
-7. Slice 6: classification and versioning. Current next slice.
-8. Slice 7: OCR and search.
+7. Slice 6: classification and versioning.
+8. Slice 7: OCR and search. Current next slice.
 9. Slice 8: filing-pack builder.
 10. Slice 9: receipt and court-output capture.
 11. Slice 10: backup and restore.

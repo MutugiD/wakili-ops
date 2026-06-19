@@ -20,7 +20,7 @@ This log tracks V1 planning and implementation progress.
 | 3 | Matter management | Complete | SQLite matter repository, create/list/update tests, UI matter creation form, matter list, and app startup smoke verified. |
 | 4 | Document import | Complete | Manual DOC, DOCX, and PDF import into selected matter with supported file checks, encrypted vault storage, hash metadata, SQLite document registration, and UI matter document list. |
 | 5 | Watched scan folder | Complete | On-demand watched folder refresh queues supported DOC, DOCX, and PDF files into a pending scan inbox, ignores unsupported files, avoids duplicate queue entries, and imports selected scans into selected matters. |
-| 6 | Classification and versioning | Planned | Document type and lifecycle status. |
+| 6 | Classification and versioning | Complete | Document type/status editing, filed/served immutability, initial version metadata on import, SQLite document version storage, and selected-document version list UI. |
 | 7 | OCR and search | Planned | Local OCR adapter and SQLite FTS. |
 | 8 | Filing-pack builder | Planned | Manual e-filing export package. |
 | 9 | Receipt and court-output capture | Planned | Attach receipts, notices, orders, registry messages. |

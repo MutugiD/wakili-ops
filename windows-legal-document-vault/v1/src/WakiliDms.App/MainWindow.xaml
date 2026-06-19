@@ -186,6 +186,21 @@
                             HorizontalAlignment="Left"
                             Padding="18,8"
                             Margin="0,10,0,0" />
+
+                    <TextBlock Text="Classify selected document" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
+                    <TextBlock Text="Document type" Margin="0,0,0,4" />
+                    <ComboBox ItemsSource="{Binding DocumentTypeOptions}"
+                              SelectedItem="{Binding SelectedDocumentType}" />
+
+                    <TextBlock Text="Document status" Margin="0,10,0,4" />
+                    <ComboBox ItemsSource="{Binding DocumentStatusOptions}"
+                              SelectedItem="{Binding SelectedDocumentStatus}" />
+
+                    <Button Content="Update classification"
+                            Command="{Binding UpdateDocumentClassificationCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,14,0,0" />
                 </StackPanel>
             </Border>
 
@@ -265,8 +280,11 @@
                                    FontWeight="SemiBold"
                                    Foreground="#111827"
                                    Margin="0,20,0,8" />
-                        <ItemsControl ItemsSource="{Binding Documents}">
-                            <ItemsControl.ItemTemplate>
+                        <ListBox ItemsSource="{Binding Documents}"
+                                 SelectedItem="{Binding SelectedDocument}"
+                                 BorderThickness="0"
+                                 MaxHeight="220">
+                            <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Border BorderBrush="#E5E7EB"
                                             BorderThickness="1"
@@ -275,9 +293,35 @@
                                             CornerRadius="4">
                                         <StackPanel>
                                             <TextBlock Text="{Binding OriginalFileName}" FontWeight="SemiBold" Foreground="#111827" />
-                                            <TextBlock Text="{Binding Status}" Foreground="#374151" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding DocumentType}" Foreground="#374151" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding Status}" Foreground="#374151" Margin="0,2,0,0" />
                                             <TextBlock Text="{Binding ByteLength}" Foreground="#6B7280" Margin="0,2,0,0" />
                                             <TextBlock Text="{Binding ImportedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <TextBlock Text="Document versions"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   Margin="0,20,0,8" />
+                        <ItemsControl ItemsSource="{Binding DocumentVersions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#E5E7EB"
+                                            BorderThickness="1"
+                                            Padding="10"
+                                            Margin="0,0,0,8"
+                                            CornerRadius="4">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding VersionNumber}" FontWeight="SemiBold" Foreground="#111827" />
+                                            <TextBlock Text="{Binding OriginalFileName}" Foreground="#374151" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding Status}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding CreatedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding Notes}" Foreground="#6B7280" TextWrapping="Wrap" Margin="0,2,0,0" />
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
