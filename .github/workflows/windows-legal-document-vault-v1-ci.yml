@@ -25,6 +25,28 @@ permissions:
   security-events: write
 
 jobs:
+  secret-scan:
+    name: Secret Leak Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.28.0 \
+            detect \
+            --source=/repo \
+            --config=/repo/.gitleaks.toml \
+            --redact \
+            --no-banner \
+            --verbose
+
   build-test-security:
     name: Build, Test, and Security Gates
     runs-on: windows-latest
@@ -74,11 +96,6 @@ jobs:
 
       - name: Dependency vulnerability scan
         run: dotnet list WakiliDms.sln package --include-transitive --vulnerable
-
-      - name: Secret leak scan
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: App startup smoke
         run: |
