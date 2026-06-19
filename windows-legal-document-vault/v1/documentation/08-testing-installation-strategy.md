@@ -83,6 +83,10 @@ V1 install verification:
 - Install on Windows 10 64-bit.
 - Install on Windows 11 64-bit.
 - Launch app without admin-only runtime assumptions.
+- Build self-contained `win-x64` package.
+- Run packaged executable smoke test.
+- Install into `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
+- Uninstall while preserving user vault data by default.
 - Create local vault.
 - Restore sample backup.
 - Uninstall without deleting user vault unless user explicitly chooses.
@@ -96,4 +100,3 @@ The MVP is installation-ready when:
 - Cross-machine restore passes.
 - Installer smoke test passes.
 - Documentation matches implemented behavior.
-

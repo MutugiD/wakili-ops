@@ -65,6 +65,74 @@ Expected result:
 - First-run setup appears if no settings exist.
 - Home screen appears if setup was already completed.
 
+## Build a Local Windows Package
+
+Use this when preparing a plug-and-play folder or zip for local Windows testing:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-WindowsPackage.ps1
+```
+
+Expected outputs:
+
+- `artifacts\package\windows-legal-document-vault-v1-win-x64\`
+- `artifacts\package\windows-legal-document-vault-v1-win-x64.zip`
+- `install-local.ps1`
+- `uninstall-local.ps1`
+- `run-windows-legal-document-vault.cmd`
+- `package-manifest.json`
+
+Default packaging is self-contained for `win-x64`, so the package is suitable for Windows machines that do not already have the target .NET runtime installed.
+
+For CI or faster developer checks, build a framework-dependent package:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-WindowsPackage.ps1 -FrameworkDependent
+```
+
+## Install the Local Package
+
+From the generated package folder:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1\artifacts\package\windows-legal-document-vault-v1-win-x64
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-local.ps1
+```
+
+Expected result:
+
+- App files are copied to `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
+- A Start Menu shortcut is created for the current Windows user.
+- No administrator privileges are required.
+- Existing vault data under `%LOCALAPPDATA%\WakiliDms` is preserved.
+
+To create a desktop shortcut too:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-local.ps1 -CreateDesktopShortcut
+```
+
+## Uninstall the Local Package
+
+From any folder:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\WindowsLegalDocumentVault\uninstall-local.ps1"
+```
+
+Expected result:
+
+- Installed app files are removed.
+- Start Menu and desktop shortcuts are removed.
+- User vault data is preserved by default.
+
+Only for disposable development data, add:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\WindowsLegalDocumentVault\uninstall-local.ps1" -DeleteUserVaultData
+```
+
 ## App Startup Smoke Test
 
 Use this when a quick non-interactive check is enough:
@@ -79,6 +147,27 @@ To see the app window during the smoke:
 ```powershell
 cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
 .\scripts\Start-AppSmoke.ps1 -Visible
+```
+
+## Package Smoke Test
+
+Use this before sharing a local package:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1
+```
+
+Expected result:
+
+- Package is built.
+- Packaged `WakiliDms.App.exe` starts successfully.
+- Smoke script stops the launched process.
+
+CI uses the faster framework-dependent variant:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1 -FrameworkDependent
 ```
 
 ## Local App Data
