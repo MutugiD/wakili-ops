@@ -156,10 +156,12 @@ Automated tests:
 - Pack snapshot creation.
 - Readiness warnings.
 - Export manifest.
+- Decrypted exported copies match selected vault documents.
 
 Manual verification:
 
 - Export folder contains documents, index, checklist, and readiness report.
+- User sees warning that export folders are not encrypted.
 
 ## Slice 9: Receipt and Court Output Capture
 

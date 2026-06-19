@@ -1,5 +1,6 @@
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Documents;
+using WakiliDms.Core.Filing;
 using WakiliDms.Core.Setup;
 using WakiliDms.Core.Scan;
 using WakiliDms.Core.Search;
@@ -31,7 +32,8 @@ var tests = new (string Name, Action Test)[]
     ("Filed document classification is immutable", FiledDocumentClassificationIsImmutable),
     ("DOCX text extractor returns searchable body text", DocxTextExtractorReturnsSearchableBodyText),
     ("Document indexing searches encrypted DOCX by matter", DocumentIndexingSearchesEncryptedDocxByMatter),
-    ("Text-like PDF extraction can be indexed and searched", TextLikePdfExtractionCanBeIndexedAndSearched)
+    ("Text-like PDF extraction can be indexed and searched", TextLikePdfExtractionCanBeIndexedAndSearched),
+    ("Filing pack export writes decrypted copies and manifest", FilingPackExportWritesDecryptedCopiesAndManifest)
 };
 
 var failures = 0;
@@ -738,6 +740,74 @@ static void TextLikePdfExtractionCanBeIndexedAndSearched()
 
         var results = searchRepository.SearchAsync(matter.Id, "conservatory orders", CancellationToken.None).GetAwaiter().GetResult();
         Assert(results.Count == 1, "Matter search should return the indexed text-like PDF.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void FilingPackExportWritesDecryptedCopiesAndManifest()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var exportRoot = Path.Combine(tempRoot, "exports");
+    var plaintPath = Path.Combine(tempRoot, "plaint.pdf");
+    var affidavitPath = Path.Combine(tempRoot, "affidavit.docx");
+    var recoveryKey = "filing pack recovery key";
+    var plaintText = "%PDF-1.7\nPlaint for export\n%%EOF";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(plaintPath, plaintText);
+        CreateMinimalDocx(affidavitPath, "Affidavit for filing pack export.");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Jane Doe v Acme Ltd", courtCaseNumber: "ELC-100");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
+        var plaint = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, plaintPath, vaultPath, recoveryKey, DocumentType.Pleading),
+            CancellationToken.None).GetAwaiter().GetResult();
+        var affidavit = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, affidavitPath, vaultPath, recoveryKey, DocumentType.Affidavit),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(plaint.Succeeded && plaint.Value is not null, plaint.Error ?? "Plaint import failed.");
+        Assert(affidavit.Succeeded && affidavit.Value is not null, affidavit.Error ?? "Affidavit import failed.");
+
+        var exportService = new FilingPackExportService(matterRepository, documentRepository, vault);
+        var exported = exportService.ExportAsync(
+            new FilingPackExportRequest(
+                matter.Id,
+                [plaint.Value!.Id, affidavit.Value!.Id],
+                vaultPath,
+                recoveryKey,
+                exportRoot),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(exported.Succeeded, exported.Error ?? "Filing pack export failed.");
+        Assert(exported.Value is not null, "Filing pack export result should be returned.");
+        Assert(exported.Value!.ExportedDocumentCount == 2, "Filing pack should export two documents.");
+        Assert(File.Exists(exported.Value.ManifestPath), "Filing pack manifest should exist.");
+        Assert(File.Exists(exported.Value.ChecklistPath), "Filing readiness checklist should exist.");
+        Assert(Directory.GetFiles(exported.Value.ExportDirectory, "*.pdf").Length == 1, "Export should include the PDF copy.");
+        Assert(Directory.GetFiles(exported.Value.ExportDirectory, "*.docx").Length == 1, "Export should include the DOCX copy.");
+        Assert(File.ReadAllText(exported.Value.ManifestPath).Contains("ELC-100", StringComparison.Ordinal), "Manifest should include matter case number.");
+        Assert(File.ReadAllText(exported.Value.ChecklistPath).Contains("Delete temporary export copies", StringComparison.Ordinal), "Checklist should include export cleanup reminder.");
     }
     finally
     {

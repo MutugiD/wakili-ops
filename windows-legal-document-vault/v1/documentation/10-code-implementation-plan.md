@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, 4, 5, 6, and 7 are complete.
+Slices 0, 1, 2, 3, 4, 5, 6, 7, and 8 are complete.
 
 Current code scaffold:
 
@@ -51,6 +51,8 @@ Current implemented behavior:
 - SQLite FTS matter search.
 - Selected-document indexing command.
 - Matter search command and result list.
+- Matter filing-pack export.
+- Filing-pack manifest and readiness checklist generation.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -240,17 +242,38 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - `scripts\Start-AppSmoke.ps1`
 
-## Next Slice: Filing-Pack Builder
+## Completed Slice: Filing-Pack Builder
+
+Implemented:
+
+- Export selected matter documents into a user-chosen normal folder.
+- Create filing manifest and readiness checklist.
+- Warn that export folders are not encrypted.
+- Tests for decrypted file copies, manifest, and checklist.
+
+Acceptance criteria:
+
+- User can export the selected matter document list as a filing pack.
+- Export folder includes decrypted document copies.
+- Export folder includes `filing-pack-manifest.json`.
+- Export folder includes `filing-readiness-checklist.txt`.
+- App warns that export folders are not encrypted.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- `scripts\Start-AppSmoke.ps1`
+
+## Next Slice: Receipt and Court-Output Capture
 
 Build next:
 
-- Select matter documents for e-filing export.
-- Export selected decrypted copies into a user-chosen normal folder.
-- Create filing manifest and readiness checklist.
-- Warn that export folders are not encrypted.
+- Attach portal receipts and court outputs to matters.
+- Classify receipts/orders/notices separately from filing-pack source documents.
+- Preserve filed output metadata and checklist links.
 
 ## Following Slices
 
-1. Receipt and court-output capture.
-2. Backup and restore.
-3. Installer and cross-machine verification.
+1. Backup and restore.
+2. Installer and cross-machine verification.
