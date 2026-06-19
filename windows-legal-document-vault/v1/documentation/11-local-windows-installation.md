@@ -71,16 +71,14 @@ Use this when a quick non-interactive check is enough:
 
 ```powershell
 cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
-$dotnet = Join-Path $env:USERPROFILE ".dotnet\dotnet.exe"
-$project = Join-Path (Get-Location) "src\WakiliDms.App\WakiliDms.App.csproj"
-$proc = Start-Process -FilePath $dotnet -ArgumentList @("run","--project",$project,"--no-build") -WindowStyle Hidden -PassThru
-Start-Sleep -Seconds 5
-if (-not $proc.HasExited) {
-  Stop-Process -Id $proc.Id -Force
-  "PASS App startup smoke"
-} else {
-  throw "App exited early with code $($proc.ExitCode)"
-}
+.\scripts\Start-AppSmoke.ps1
+```
+
+To see the app window during the smoke:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+.\scripts\Start-AppSmoke.ps1 -Visible
 ```
 
 ## Local App Data
@@ -162,4 +160,3 @@ Verify with:
 Expected result:
 
 - No vulnerable packages.
-

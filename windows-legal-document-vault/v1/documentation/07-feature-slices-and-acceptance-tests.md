@@ -135,13 +135,15 @@ Goal:
 
 Automated tests:
 
-- OCR success status.
-- OCR failure status.
-- SQLite FTS search result.
+- DOCX text extraction.
+- Text-like PDF extraction.
+- Encrypted-vault document indexing.
+- SQLite FTS matter search result.
 
 Manual verification:
 
 - User searches for text from imported document.
+- User can launch the Windows app and keep it running through the startup smoke.
 
 ## Slice 8: Filing Pack Builder
 

@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, 4, 5, and 6 are complete.
+Slices 0, 1, 2, 3, 4, 5, 6, and 7 are complete.
 
 Current code scaffold:
 
@@ -47,6 +47,10 @@ Current implemented behavior:
 - Filed/served immutability guard.
 - Initial document version metadata on import.
 - Selected-document version list UI.
+- Local DOCX and text-like PDF text extraction.
+- SQLite FTS matter search.
+- Selected-document indexing command.
+- Matter search command and result list.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -213,18 +217,40 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - WPF app startup smoke.
 
-## Next Slice: OCR and Search
+## Completed Slice: OCR and Search
+
+Implemented:
+
+- Local text extraction adapter for DOCX and text-like PDFs.
+- SQLite FTS table for searchable document text.
+- Matter-scoped search UI.
+- Index selected document from encrypted vault object.
+- Tests for DOCX extraction, PDF extraction, vault indexing, and matter search.
+
+Acceptance criteria:
+
+- User can index selected DOCX/PDF documents using the vault recovery key.
+- User can search within the selected matter.
+- Search results show matching document name and snippet.
+- Indexed text stays local in SQLite.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- `scripts\Start-AppSmoke.ps1`
+
+## Next Slice: Filing-Pack Builder
 
 Build next:
 
-- Local text extraction adapter for DOCX and text-like PDFs.
-- OCR status metadata.
-- SQLite FTS table for searchable document text.
-- Matter-scoped search UI.
+- Select matter documents for e-filing export.
+- Export selected decrypted copies into a user-chosen normal folder.
+- Create filing manifest and readiness checklist.
+- Warn that export folders are not encrypted.
 
 ## Following Slices
 
-1. Filing-pack builder.
-2. Receipt and court-output capture.
-3. Backup and restore.
-4. Installer and cross-machine verification.
+1. Receipt and court-output capture.
+2. Backup and restore.
+3. Installer and cross-machine verification.
