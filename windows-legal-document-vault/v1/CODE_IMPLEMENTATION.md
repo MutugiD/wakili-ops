@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 8: filing-pack builder.
+Slice 9: receipt and court-output capture.
 
 Completed:
 
@@ -45,6 +45,11 @@ Completed:
 - Matter-scoped search UI.
 - OCR/search tests.
 - Windows app startup smoke script.
+- Matter filing-pack export.
+- Decrypted export copies from encrypted vault objects.
+- Filing-pack JSON manifest.
+- Filing readiness checklist.
+- Filing-pack export tests.
 
 ## SDK Requirement
 
@@ -68,7 +73,7 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 6. Slice 5: watched scan folder.
 7. Slice 6: classification and versioning.
 8. Slice 7: OCR and search.
-9. Slice 8: filing-pack builder. Current next slice.
-10. Slice 9: receipt and court-output capture.
+9. Slice 8: filing-pack builder.
+10. Slice 9: receipt and court-output capture. Current next slice.
 11. Slice 10: backup and restore.
 12. Slice 11: installer and cross-machine test.

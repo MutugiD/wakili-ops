@@ -2,6 +2,7 @@ using System.Windows.Input;
 using System.Collections.ObjectModel;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
+using WakiliDms.Core.Filing;
 using WakiliDms.Core.Matter;
 using WakiliDms.Core.Scan;
 using WakiliDms.Core.Search;
@@ -22,6 +23,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly DocumentImportService _documentImportService;
     private readonly ScanFolderService _scanFolderService;
     private readonly DocumentIndexingService _documentIndexingService;
+    private readonly FilingPackExportService _filingPackExportService;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
     private string _vaultPath = string.Empty;
@@ -33,6 +35,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _newMatterCourtCaseNumber = string.Empty;
     private string _importSourceFilePath = string.Empty;
     private string _importRecoveryKey = string.Empty;
+    private string _filingPackExportRootPath = string.Empty;
     private string _searchQuery = string.Empty;
     private MatterListItemViewModel? _selectedMatter;
     private DocumentListItemViewModel? _selectedDocument;
@@ -63,6 +66,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _documentVersionRepository, _vaultService);
         _scanFolderService = new ScanFolderService(_scanInboxRepository);
         _documentIndexingService = new DocumentIndexingService(_documentRepository, _vaultService, documentTextExtractor, _documentSearchRepository);
+        _filingPackExportService = new FilingPackExportService(_matterRepository, _documentRepository, _vaultService);
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
         ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
@@ -71,6 +75,7 @@ public sealed class MainWindowViewModel : ObservableObject
         UpdateDocumentClassificationCommand = new AsyncRelayCommand(UpdateDocumentClassificationAsync, () => IsSetupComplete && SelectedDocument is not null);
         IndexSelectedDocumentCommand = new AsyncRelayCommand(IndexSelectedDocumentAsync, () => IsSetupComplete && SelectedDocument is not null);
         SearchMatterCommand = new AsyncRelayCommand(SearchMatterAsync, () => IsSetupComplete && SelectedMatter is not null);
+        ExportFilingPackCommand = new AsyncRelayCommand(ExportFilingPackAsync, () => IsSetupComplete && SelectedMatter is not null && Documents.Count > 0);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -147,6 +152,12 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _searchQuery;
         set => SetProperty(ref _searchQuery, value);
+    }
+
+    public string FilingPackExportRootPath
+    {
+        get => _filingPackExportRootPath;
+        set => SetProperty(ref _filingPackExportRootPath, value);
     }
 
     public MatterListItemViewModel? SelectedMatter
@@ -228,6 +239,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 (UpdateDocumentClassificationCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (IndexSelectedDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (SearchMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -256,6 +268,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand SearchMatterCommand { get; }
 
+    public ICommand ExportFilingPackCommand { get; }
+
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
     public ObservableCollection<DocumentListItemViewModel> Documents { get; } = [];
@@ -278,7 +292,8 @@ public sealed class MainWindowViewModel : ObservableObject
         "Document import",
         "Scan inbox",
         "Classification and versioning",
-        "OCR and search"
+        "OCR and search",
+        "Filing-pack builder"
     ];
 
     public async Task LoadAsync()
@@ -301,6 +316,7 @@ public sealed class MainWindowViewModel : ObservableObject
         VaultPath = settings.VaultPath;
         ScanFolderPath = settings.ScanFolderPath;
         BackupTargetPath = settings.BackupTargetPath;
+        FilingPackExportRootPath = settings.BackupTargetPath;
         RecoveryKeyConfirmed = settings.RecoveryKeyConfirmed;
         StatusMessage = $"Vault setup complete for {settings.FirmName}.";
         IsSetupComplete = true;
@@ -533,6 +549,33 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"Search returned {results.Count:N0} result(s).";
     }
 
+    public async Task ExportFilingPackAsync()
+    {
+        if (SelectedMatter is null)
+        {
+            StatusMessage = "Select a matter before exporting a filing pack.";
+            return;
+        }
+
+        var documentIds = Documents.Select(document => document.Id).ToList();
+        var result = await _filingPackExportService.ExportAsync(
+            new FilingPackExportRequest(
+                SelectedMatter.Id,
+                documentIds,
+                VaultPath,
+                ImportRecoveryKey,
+                FilingPackExportRootPath),
+            CancellationToken.None);
+
+        if (!result.Succeeded || result.Value is null)
+        {
+            StatusMessage = result.Error ?? "Filing pack export failed.";
+            return;
+        }
+
+        StatusMessage = $"Filing pack exported {result.Value.ExportedDocumentCount:N0} document(s) to {result.Value.ExportDirectory}.";
+    }
+
 
     private async Task ReloadMattersAsync()
     {
@@ -565,6 +608,8 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             Documents.Add(new DocumentListItemViewModel(document));
         }
+
+        (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
 
         if (previousSelectedDocumentId is not null)
         {
