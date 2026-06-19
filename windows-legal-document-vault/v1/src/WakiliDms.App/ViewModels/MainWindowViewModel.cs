@@ -6,6 +6,7 @@ using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Filing;
+using WakiliDms.Core.Licensing;
 using WakiliDms.Core.Matter;
 using WakiliDms.Core.Scan;
 using WakiliDms.Core.Search;
@@ -31,8 +32,14 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly CourtOutputCaptureService _courtOutputCaptureService;
     private readonly BackupSnapshotService _backupSnapshotService;
     private readonly RestoreDrillService _restoreDrillService;
+    private readonly InstallationControlService _installationControlService;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
+    private string _licenseKey = string.Empty;
+    private string _deviceNickname = string.Empty;
+    private string _installationId = string.Empty;
+    private LicenseStatus _licenseStatus = LicenseStatus.Trial;
+    private bool _installationEnabled = true;
     private string _vaultPath = string.Empty;
     private string _scanFolderPath = string.Empty;
     private string _backupTargetPath = string.Empty;
@@ -82,17 +89,18 @@ public sealed class MainWindowViewModel : ObservableObject
         _courtOutputCaptureService = new CourtOutputCaptureService(_documentImportService);
         _backupSnapshotService = new BackupSnapshotService();
         _restoreDrillService = new RestoreDrillService();
+        _installationControlService = new InstallationControlService();
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
-        CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
-        ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
-        RefreshScanFolderCommand = new AsyncRelayCommand(RefreshScanFolderAsync, () => IsSetupComplete);
-        ImportSelectedScanCommand = new AsyncRelayCommand(ImportSelectedScanAsync, () => IsSetupComplete && SelectedMatter is not null && SelectedScan is not null);
-        UpdateDocumentClassificationCommand = new AsyncRelayCommand(UpdateDocumentClassificationAsync, () => IsSetupComplete && SelectedDocument is not null);
-        IndexSelectedDocumentCommand = new AsyncRelayCommand(IndexSelectedDocumentAsync, () => IsSetupComplete && SelectedDocument is not null);
-        SearchMatterCommand = new AsyncRelayCommand(SearchMatterAsync, () => IsSetupComplete && SelectedMatter is not null);
-        ExportFilingPackCommand = new AsyncRelayCommand(ExportFilingPackAsync, () => IsSetupComplete && SelectedMatter is not null && Documents.Count > 0);
-        CaptureCourtOutputCommand = new AsyncRelayCommand(CaptureCourtOutputAsync, () => IsSetupComplete && SelectedMatter is not null);
-        RunBackupCommand = new AsyncRelayCommand(RunBackupAsync, () => IsSetupComplete);
+        CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => CanUseInstall);
+        ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => CanUseInstall && SelectedMatter is not null);
+        RefreshScanFolderCommand = new AsyncRelayCommand(RefreshScanFolderAsync, () => CanUseInstall);
+        ImportSelectedScanCommand = new AsyncRelayCommand(ImportSelectedScanAsync, () => CanUseInstall && SelectedMatter is not null && SelectedScan is not null);
+        UpdateDocumentClassificationCommand = new AsyncRelayCommand(UpdateDocumentClassificationAsync, () => CanUseInstall && SelectedDocument is not null);
+        IndexSelectedDocumentCommand = new AsyncRelayCommand(IndexSelectedDocumentAsync, () => CanUseInstall && SelectedDocument is not null);
+        SearchMatterCommand = new AsyncRelayCommand(SearchMatterAsync, () => CanUseInstall && SelectedMatter is not null);
+        ExportFilingPackCommand = new AsyncRelayCommand(ExportFilingPackAsync, () => CanUseInstall && SelectedMatter is not null && Documents.Count > 0);
+        CaptureCourtOutputCommand = new AsyncRelayCommand(CaptureCourtOutputAsync, () => CanUseInstall && SelectedMatter is not null);
+        RunBackupCommand = new AsyncRelayCommand(RunBackupAsync, () => CanUseInstall);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -109,6 +117,51 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _primaryUser;
         set => SetProperty(ref _primaryUser, value);
+    }
+
+    public string LicenseKey
+    {
+        get => _licenseKey;
+        set => SetProperty(ref _licenseKey, value);
+    }
+
+    public string DeviceNickname
+    {
+        get => _deviceNickname;
+        set => SetProperty(ref _deviceNickname, value);
+    }
+
+    public string InstallationId
+    {
+        get => _installationId;
+        private set => SetProperty(ref _installationId, value);
+    }
+
+    public string LicenseStatusText => $"License status: {LicenseStatus}";
+
+    public LicenseStatus LicenseStatus
+    {
+        get => _licenseStatus;
+        private set
+        {
+            if (SetProperty(ref _licenseStatus, value))
+            {
+                OnPropertyChanged(nameof(LicenseStatusText));
+            }
+        }
+    }
+
+    public bool InstallationEnabled
+    {
+        get => _installationEnabled;
+        private set
+        {
+            if (SetProperty(ref _installationEnabled, value))
+            {
+                OnPropertyChanged(nameof(CanUseInstall));
+                RaiseLicensedCommandStates();
+            }
+        }
     }
 
     public string VaultPath
@@ -267,21 +320,15 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetProperty(ref _isSetupComplete, value))
             {
                 OnPropertyChanged(nameof(IsSetupRequired));
-                (CreateMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (RefreshScanFolderCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (UpdateDocumentClassificationCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (IndexSelectedDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (SearchMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (CaptureCourtOutputCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (RunBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(CanUseInstall));
+                RaiseLicensedCommandStates();
             }
         }
     }
 
     public bool IsSetupRequired => !IsSetupComplete;
+
+    public bool CanUseInstall => IsSetupComplete && InstallationEnabled;
 
     public string StatusMessage
     {
@@ -364,14 +411,24 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
-        FirmName = settings.FirmName;
+        var ensuredSettings = _installationControlService.EnsureInstallationIdentity(settings, DateTimeOffset.UtcNow);
+        if (ensuredSettings != settings)
+        {
+            await _settingsStore.SaveAsync(ensuredSettings, CancellationToken.None);
+        }
+
+        FirmName = ensuredSettings.FirmName;
+        LicenseKey = ensuredSettings.LicenseKey;
+        DeviceNickname = ensuredSettings.DeviceNickname;
+        InstallationId = ensuredSettings.InstallationId.ToString("D");
+        LicenseStatus = ensuredSettings.LicenseStatus;
         PrimaryUser = settings.PrimaryUser;
-        VaultPath = settings.VaultPath;
-        ScanFolderPath = settings.ScanFolderPath;
-        BackupTargetPath = settings.BackupTargetPath;
-        FilingPackExportRootPath = settings.BackupTargetPath;
-        RecoveryKeyConfirmed = settings.RecoveryKeyConfirmed;
-        StatusMessage = $"Vault setup complete for {settings.FirmName}.";
+        VaultPath = ensuredSettings.VaultPath;
+        ScanFolderPath = ensuredSettings.ScanFolderPath;
+        BackupTargetPath = ensuredSettings.BackupTargetPath;
+        FilingPackExportRootPath = ensuredSettings.BackupTargetPath;
+        RecoveryKeyConfirmed = ensuredSettings.RecoveryKeyConfirmed;
+        ApplyLicenseGate(ensuredSettings);
         IsSetupComplete = true;
         await ReloadMattersAsync();
         await ReloadScanInboxAsync();
@@ -379,17 +436,19 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task CompleteSetupAsync()
     {
-        var settings = new AppSettings
+        var settings = _installationControlService.EnsureInstallationIdentity(new AppSettings
         {
             FirmName = FirmName,
             PrimaryUser = PrimaryUser,
+            LicenseKey = LicenseKey,
+            DeviceNickname = DeviceNickname,
             VaultPath = VaultPath,
             ScanFolderPath = ScanFolderPath,
             BackupTargetPath = BackupTargetPath,
             RecoveryKeyConfirmed = RecoveryKeyConfirmed,
             CloudBackupEnabled = false,
             SetupCompletedAt = DateTimeOffset.UtcNow
-        };
+        }, DateTimeOffset.UtcNow);
 
         var validation = SetupValidator.Validate(settings);
         if (!validation.Succeeded)
@@ -413,7 +472,10 @@ public sealed class MainWindowViewModel : ObservableObject
 
         await _settingsStore.SaveAsync(settings, CancellationToken.None);
         SetupRecoveryKey = string.Empty;
-        StatusMessage = $"Vault setup complete for {settings.FirmName}.";
+        InstallationId = settings.InstallationId.ToString("D");
+        DeviceNickname = settings.DeviceNickname;
+        LicenseStatus = settings.LicenseStatus;
+        ApplyLicenseGate(settings);
         IsSetupComplete = true;
         await ReloadMattersAsync();
         await ReloadScanInboxAsync();
@@ -421,9 +483,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task CreateMatterAsync()
     {
-        if (!IsSetupComplete)
+        if (!CanUseLicensedFeatures())
         {
-            StatusMessage = "Complete setup before creating matters.";
             return;
         }
 
@@ -450,6 +511,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task ImportDocumentAsync()
     {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
         if (SelectedMatter is null)
         {
             StatusMessage = "Select a matter before importing a document.";
@@ -476,9 +542,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task RefreshScanFolderAsync()
     {
-        if (!IsSetupComplete)
+        if (!CanUseLicensedFeatures())
         {
-            StatusMessage = "Complete setup before scanning the watched folder.";
             return;
         }
 
@@ -495,6 +560,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task ImportSelectedScanAsync()
     {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
         if (SelectedMatter is null)
         {
             StatusMessage = "Select a matter before importing a pending scan.";
@@ -533,6 +603,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task UpdateDocumentClassificationAsync()
     {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
         if (SelectedDocument is null)
         {
             StatusMessage = "Select a document before updating classification.";
@@ -561,6 +636,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task IndexSelectedDocumentAsync()
     {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
         if (SelectedDocument is null)
         {
             StatusMessage = "Select a document before indexing text.";
@@ -584,6 +664,11 @@ public sealed class MainWindowViewModel : ObservableObject
     public async Task SearchMatterAsync()
     {
         SearchResults.Clear();
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
         if (SelectedMatter is null)
         {
             StatusMessage = "Select a matter before searching.";
@@ -604,6 +689,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task ExportFilingPackAsync()
     {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
         if (SelectedMatter is null)
         {
             StatusMessage = "Select a matter before exporting a filing pack.";
@@ -631,6 +721,11 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task CaptureCourtOutputAsync()
     {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
         if (SelectedMatter is null)
         {
             StatusMessage = "Select a matter before capturing a receipt or court output.";
@@ -659,9 +754,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public async Task RunBackupAsync()
     {
-        if (!IsSetupComplete)
+        if (!CanUseLicensedFeatures())
         {
-            StatusMessage = "Complete setup before running a backup.";
             return;
         }
 
@@ -758,5 +852,45 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             SelectedScan = ScanInbox.FirstOrDefault(item => item.Id == selectedScanId.Value);
         }
+    }
+
+    private void ApplyLicenseGate(AppSettings settings)
+    {
+        var gate = _installationControlService.EvaluateLocalAccess(settings);
+        InstallationEnabled = gate.Allowed;
+        StatusMessage = gate.Allowed
+            ? $"Vault setup complete for {settings.FirmName}. {gate.Message}"
+            : gate.Message;
+    }
+
+    private void RaiseLicensedCommandStates()
+    {
+        (CreateMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (RefreshScanFolderCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (UpdateDocumentClassificationCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (IndexSelectedDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (SearchMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (CaptureCourtOutputCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (RunBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private bool CanUseLicensedFeatures()
+    {
+        if (!IsSetupComplete)
+        {
+            StatusMessage = "Complete setup before using this feature.";
+            return false;
+        }
+
+        if (!InstallationEnabled)
+        {
+            StatusMessage = "This installation ID is disabled or revoked. Local vault data remains on this computer.";
+            return false;
+        }
+
+        return true;
     }
 }

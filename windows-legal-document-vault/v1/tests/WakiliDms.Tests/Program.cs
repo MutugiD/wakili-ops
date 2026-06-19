@@ -1,8 +1,10 @@
+using System.Text.Json;
 using WakiliDms.Core.Backup;
 using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Filing;
+using WakiliDms.Core.Licensing;
 using WakiliDms.Core.Setup;
 using WakiliDms.Core.Scan;
 using WakiliDms.Core.Search;
@@ -39,7 +41,12 @@ var tests = new (string Name, Action Test)[]
     ("Court output capture stores filing receipt under matter", CourtOutputCaptureStoresFilingReceiptUnderMatter),
     ("Court output capture rejects non-output document type", CourtOutputCaptureRejectsNonOutputDocumentType),
     ("Backup snapshot copies encrypted vault and database with manifest", BackupSnapshotCopiesEncryptedVaultAndDatabaseWithManifest),
-    ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles)
+    ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles),
+    ("Installation identity is generated and preserved", InstallationIdentityIsGeneratedAndPreserved),
+    ("Disabled installation blocks licensed feature access without deleting data", DisabledInstallationBlocksLicensedFeatureAccessWithoutDeletingData),
+    ("Installation check-in payload excludes document and matter details", InstallationCheckInPayloadExcludesDocumentAndMatterDetails),
+    ("Admin registry can enable and disable installation IDs", AdminRegistryCanEnableAndDisableInstallationIds),
+    ("Admin registry delete does not touch vault data", AdminRegistryDeleteDoesNotTouchVaultData)
 };
 
 var failures = 0;
@@ -964,6 +971,157 @@ static void RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles()
         Assert(File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db.backup")), "Restore drill should copy encrypted database artifact.");
         Assert(!File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db")), "Restore drill should not leave a plain database file.");
         Assert(Directory.GetFiles(Path.Combine(restoreTarget, "vault", "objects"), "*.json").Length == 1, "Restore drill should copy vault object files.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void InstallationIdentityIsGeneratedAndPreserved()
+{
+    var service = new InstallationControlService();
+    var now = DateTimeOffset.UtcNow;
+    var settings = ValidSettings() with
+    {
+        DeviceNickname = "  Front Desk PC  ",
+        LicenseKey = "WLVD-TRIAL-001"
+    };
+
+    var generated = service.EnsureInstallationIdentity(settings, now);
+    var preserved = service.EnsureInstallationIdentity(generated, now.AddDays(1));
+
+    Assert(generated.InstallationId != Guid.Empty, "Installation ID should be generated.");
+    Assert(generated.DeviceNickname == "Front Desk PC", "Device nickname should be trimmed.");
+    Assert(generated.InstallationCreatedAt == now, "Installation creation time should be set.");
+    Assert(preserved.InstallationId == generated.InstallationId, "Existing installation ID should be preserved.");
+    Assert(preserved.InstallationCreatedAt == now, "Existing installation creation time should be preserved.");
+}
+
+static void DisabledInstallationBlocksLicensedFeatureAccessWithoutDeletingData()
+{
+    var service = new InstallationControlService();
+    var active = service.EvaluateLocalAccess(ValidSettings() with { LicenseStatus = LicenseStatus.Active });
+    var disabled = service.EvaluateLocalAccess(ValidSettings() with { LicenseStatus = LicenseStatus.Disabled });
+    var revoked = service.EvaluateLocalAccess(ValidSettings() with { LicenseStatus = LicenseStatus.Revoked });
+
+    Assert(active.Allowed, "Active installation should pass the local license gate.");
+    Assert(!disabled.Allowed, "Disabled installation should fail the local license gate.");
+    Assert(disabled.Message.Contains("Local vault data remains", StringComparison.Ordinal), "Disabled message must preserve local vault data.");
+    Assert(!revoked.Allowed, "Revoked installation should fail the local license gate.");
+    Assert(revoked.Message.Contains("Local vault data remains", StringComparison.Ordinal), "Revoked message must preserve local vault data.");
+}
+
+static void InstallationCheckInPayloadExcludesDocumentAndMatterDetails()
+{
+    var service = new InstallationControlService();
+    var settings = service.EnsureInstallationIdentity(ValidSettings() with
+    {
+        FirmName = "Allowed Firm Display",
+        PrimaryUser = "Private Advocate Name",
+        VaultPath = @"C:\ClientVaults\Jane Doe v Acme Ltd",
+        ScanFolderPath = @"C:\Scans\ELC-100",
+        BackupTargetPath = @"D:\Backups\Client Files",
+        LicenseKey = "WLVD-TRIAL-002",
+        DeviceNickname = "Office PC",
+        LicenseStatus = LicenseStatus.Active
+    }, DateTimeOffset.UtcNow);
+
+    var payload = service.CreateCheckInPayload(
+        settings,
+        "1.0.0",
+        new BackupHealthSummary(DateTimeOffset.UtcNow, null, "LocalBackupHealthy"),
+        DateTimeOffset.UtcNow);
+    var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+    Assert(json.Contains("Allowed Firm Display", StringComparison.Ordinal), "Payload may include firm display name.");
+    Assert(json.Contains(settings.InstallationId.ToString("D"), StringComparison.OrdinalIgnoreCase), "Payload should include installation ID.");
+    Assert(!json.Contains("Private Advocate Name", StringComparison.Ordinal), "Payload must not include primary user name.");
+    Assert(!json.Contains("Jane Doe", StringComparison.Ordinal), "Payload must not include matter or client names from paths.");
+    Assert(!json.Contains("ELC-100", StringComparison.Ordinal), "Payload must not include case numbers from paths.");
+    Assert(!json.Contains("Client Files", StringComparison.Ordinal), "Payload must not include backup path details.");
+}
+
+static void AdminRegistryCanEnableAndDisableInstallationIds()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var registryPath = Path.Combine(tempRoot, "admin-registry.json");
+
+    try
+    {
+        var registry = new AdminInstallationRegistry(registryPath);
+        var installationId = Guid.NewGuid();
+        var payload = new InstallationCheckInPayload(
+            installationId,
+            "WLVD-ACTIVE-001",
+            "Example Advocates LLP",
+            "Reception PC",
+            "1.0.0",
+            LicenseStatus.Trial,
+            true,
+            new FeatureEntitlements(false),
+            new BackupHealthSummary(DateTimeOffset.UtcNow, null, "Healthy"),
+            DateTimeOffset.UtcNow);
+
+        var upsert = registry.UpsertFromCheckInAsync(payload, "initial install", CancellationToken.None).GetAwaiter().GetResult();
+        Assert(upsert.Succeeded && upsert.Value is not null, upsert.Error ?? "Admin registry upsert failed.");
+        Assert(upsert.Value!.Created, "First check-in should create an admin registry record.");
+
+        var disabled = registry.DisableAsync(installationId, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(disabled.Succeeded && disabled.Value is not null, disabled.Error ?? "Disable failed.");
+        Assert(disabled.Value!.LicenseStatus == LicenseStatus.Disabled, "Disable should set status to Disabled.");
+
+        var enabled = registry.EnableAsync(installationId, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(enabled.Succeeded && enabled.Value is not null, enabled.Error ?? "Enable failed.");
+        Assert(enabled.Value!.LicenseStatus == LicenseStatus.Active, "Enable should set status to Active.");
+
+        var records = registry.ListAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert(records.Count == 1, "Admin registry should contain one installation.");
+        Assert(records[0].SupportNotes == "initial install", "Support notes should persist.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void AdminRegistryDeleteDoesNotTouchVaultData()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var registryPath = Path.Combine(tempRoot, "admin-registry.json");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var markerPath = Path.Combine(vaultPath, "vault-marker.txt");
+
+    try
+    {
+        Directory.CreateDirectory(vaultPath);
+        File.WriteAllText(markerPath, "local vault data");
+        var registry = new AdminInstallationRegistry(registryPath);
+        var installationId = Guid.NewGuid();
+        var payload = new InstallationCheckInPayload(
+            installationId,
+            "WLVD-ACTIVE-002",
+            "Example Firm",
+            "Office PC",
+            "1.0.0",
+            LicenseStatus.Active,
+            true,
+            new FeatureEntitlements(false),
+            new BackupHealthSummary(null, null, "Unknown"),
+            DateTimeOffset.UtcNow);
+        registry.UpsertFromCheckInAsync(payload, string.Empty, CancellationToken.None).GetAwaiter().GetResult();
+
+        var deleted = registry.DeleteAsync(installationId, CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(deleted.Succeeded, deleted.Error ?? "Registry delete failed.");
+        Assert(File.Exists(markerPath), "Deleting an admin registry record must not delete local vault data.");
+        Assert(registry.ListAsync(CancellationToken.None).GetAwaiter().GetResult().Count == 0, "Registry record should be deleted.");
     }
     finally
     {

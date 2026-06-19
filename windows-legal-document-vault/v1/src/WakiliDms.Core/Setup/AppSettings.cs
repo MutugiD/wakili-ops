@@ -1,3 +1,5 @@
+using WakiliDms.Core.Licensing;
+
 namespace WakiliDms.Core.Setup;
 
 public sealed record AppSettings
@@ -17,4 +19,16 @@ public sealed record AppSettings
     public DateTimeOffset? SetupCompletedAt { get; init; }
 
     public bool CloudBackupEnabled { get; init; }
+
+    public Guid InstallationId { get; init; }
+
+    public string LicenseKey { get; init; } = string.Empty;
+
+    public string DeviceNickname { get; init; } = string.Empty;
+
+    public DateTimeOffset? InstallationCreatedAt { get; init; }
+
+    public LicenseStatus LicenseStatus { get; init; } = LicenseStatus.Trial;
+
+    public DateTimeOffset? LicenseLastCheckedAt { get; init; }
 }

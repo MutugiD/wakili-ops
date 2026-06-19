@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, and 11 are complete.
+Slices 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, and 12 are complete.
 
 Current code scaffold:
 
@@ -61,6 +61,11 @@ Current implemented behavior:
 - Local Windows package scripts.
 - Local install/uninstall scripts generated into the package.
 - Packaged executable smoke test.
+- Installation identity and license state in app settings.
+- Sanitized installation check-in payload contract.
+- Owner admin console scaffold.
+- File-backed admin installation registry.
+- Admin enable/disable/delete controls.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -352,7 +357,39 @@ Verification:
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1 -FrameworkDependent`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1`
 
+## Completed Slice: Admin Install Telemetry and Disable Flow
+
+Implemented:
+
+- Installation ID generation on setup or settings migration.
+- License key and device nickname capture.
+- License status stored in app settings.
+- WPF display for installation ID, device nickname, and license status.
+- Local disabled/revoked gate for license-gated features.
+- Sanitized installation check-in payload contract.
+- Owner admin console project at `src/WakiliDms.Admin`.
+- File-backed admin installation registry.
+- Admin commands: `list`, `checkin`, `enable`, `disable`, and `delete`.
+- Tests proving check-in payload excludes document/matter details.
+- Tests proving admin enable/disable/delete behavior.
+- Test proving admin registry deletion does not delete local vault data.
+
+Acceptance criteria:
+
+- Each install has a stable installation ID.
+- Admin tracking payload contains only allowed metadata.
+- Admin registry can list, enable, disable, and delete installation IDs.
+- Disabled/revoked local license states stop license-gated app actions.
+- Disable/delete never deletes local vault data.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- `dotnet run --project src/WakiliDms.Admin/WakiliDms.Admin.csproj -- list --registry <path>`
+- `scripts\Start-AppSmoke.ps1`
+
 ## Following Slices
 
-1. Admin install telemetry and disable flow.
-2. Optional cloud-backup provider adapter.
+1. Optional cloud-backup provider adapter.
+2. Admin hosted dashboard and payment integration.

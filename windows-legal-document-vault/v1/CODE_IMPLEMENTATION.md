@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 12: admin install telemetry and disable flow.
+Slice 13: optional cloud-backup provider adapter.
 
 Completed:
 
@@ -65,6 +65,14 @@ Completed:
 - Generated current-user install/uninstall scripts.
 - Packaged executable smoke test.
 - CI package smoke step.
+- Installation ID, device nickname, license key, and license status in app settings.
+- WPF display for installation ID and license status.
+- Local license gate for disabled/revoked installations.
+- Sanitized installation check-in payload contract.
+- Owner admin console project.
+- File-backed admin installation registry.
+- Admin list/check-in/enable/disable/delete commands.
+- Admin registry tests proving enable/disable/delete and no vault-data deletion.
 
 ## SDK Requirement
 
@@ -92,4 +100,5 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 10. Slice 9: receipt and court-output capture.
 11. Slice 10: backup and restore.
 12. Slice 11: installer and cross-machine test.
-13. Slice 12: admin install telemetry and disable flow. Current next slice.
+13. Slice 12: admin install telemetry and disable flow.
+14. Slice 13: optional cloud-backup provider adapter. Current next slice.

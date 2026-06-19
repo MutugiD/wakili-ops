@@ -56,6 +56,12 @@
                     <TextBlock Text="Primary user" Margin="0,12,0,4" />
                     <TextBox Text="{Binding PrimaryUser, UpdateSourceTrigger=PropertyChanged}" />
 
+                    <TextBlock Text="Device nickname" Margin="0,12,0,4" />
+                    <TextBox Text="{Binding DeviceNickname, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="License key" Margin="0,12,0,4" />
+                    <TextBox Text="{Binding LicenseKey, UpdateSourceTrigger=PropertyChanged}" />
+
                     <TextBlock Text="Vault path" Margin="0,12,0,4" />
                     <TextBox Text="{Binding VaultPath, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -144,6 +150,12 @@
 
                     <TextBlock Text="Backup target" FontWeight="SemiBold" Margin="0,12,0,4" />
                     <TextBlock Text="{Binding BackupTargetPath}" TextWrapping="Wrap" Foreground="#374151" />
+
+                    <TextBlock Text="Installation ID" FontWeight="SemiBold" Margin="0,12,0,4" />
+                    <TextBlock Text="{Binding InstallationId}" TextWrapping="Wrap" Foreground="#374151" />
+
+                    <TextBlock Text="{Binding LicenseStatusText}" FontWeight="SemiBold" Margin="0,12,0,4" />
+                    <TextBlock Text="{Binding DeviceNickname}" TextWrapping="Wrap" Foreground="#374151" />
 
                     <TextBlock Text="Create matter" FontSize="16" FontWeight="SemiBold" Margin="0,24,0,8" />
                     <TextBlock Text="Matter name" Margin="0,0,0,4" />

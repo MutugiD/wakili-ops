@@ -26,13 +26,15 @@ This log tracks V1 planning and implementation progress.
 | 9 | Receipt and court-output capture | Complete | Capture filing receipts, payment receipts, notices, court orders, rulings, and judgments into the selected matter through encrypted vault import. |
 | 10 | Backup and restore | Complete | Encrypted vault-object snapshot, recovery-key encrypted database backup, checksum manifest, restore-drill hash validation, and backup UI command. |
 | 11 | Installer and cross-machine test | Complete | Local-user Windows package, install/uninstall scripts, packaged executable smoke, CI package smoke, and installation docs. Cross-machine/manual restore remains part of release acceptance. |
+| 12 | Admin install telemetry and disable flow | Complete | Installation identity, license status, sanitized check-in payload, app-side disabled/revoked gate, owner admin console, and file-backed registry enable/disable/delete commands. |
+| 13 | Optional cloud-backup provider adapter | Planned | Provider interface and encrypted snapshot upload contract. |
 
 ## Deferred From V1
 
 | Item | Reason |
 | --- | --- |
 | Direct Judiciary portal automation | Legal, operational, and authentication risk. |
-| Cloud backup | Future opt-in after local backup is reliable. |
+| Cloud backup upload | Future opt-in provider after local backup and admin licensing are reliable. |
 | Direct TWAIN/WIA scanner control | Watched folder support is simpler and more compatible for V1. |
 | Local Matter RAG Connector | Depends on trustworthy document vault and OCR/search foundation. |
 | Wakili-Mkononi Matter AI Integration | Depends on Local Matter RAG Connector. |
