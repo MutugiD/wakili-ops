@@ -69,7 +69,8 @@ Cloud backup is an optional paid add-on. It must be opt-in, client-side encrypte
 
 Backup snapshots must:
 
-- Be encrypted before writing.
+- Store sensitive database/search metadata as recovery-key encrypted artifacts.
+- Copy vault objects only in their already encrypted vault-object form.
 - Include manifest.
 - Include checksums.
 - Record app version.
@@ -81,11 +82,14 @@ Backup snapshots must:
 V1 restore must support:
 
 - Test restore into temporary location.
-- Restore one matter.
-- Restore full vault.
+- Hash verification for every backup artifact.
+- Encrypted database decryptability check.
+- Future restore one matter.
+- Future restore full vault.
 - Restore report.
 
 Restore must not overwrite the live vault without explicit user confirmation.
+Restore drill output must not leave a plain SQLite database copy in the backup folder.
 
 ## Optional Cloud Backup Add-On
 

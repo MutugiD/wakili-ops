@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9 are complete.
+Slices 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10 are complete.
 
 Current code scaffold:
 
@@ -54,6 +54,10 @@ Current implemented behavior:
 - Matter filing-pack export.
 - Filing-pack manifest and readiness checklist generation.
 - Receipt and court-output capture.
+- Local backup snapshot.
+- Recovery-key encrypted database backup artifact.
+- Backup checksum manifest.
+- Restore drill verification.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -289,15 +293,44 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - `scripts\Start-AppSmoke.ps1`
 
-## Next Slice: Backup and Restore
+## Completed Slice: Backup and Restore
+
+Implemented:
+
+- Local encrypted backup snapshot manifest.
+- Copy encrypted vault objects into backup target.
+- Encrypt the SQLite metadata/search database into a `.backup` artifact with the recovery key.
+- Write checksums for each backup artifact.
+- Restore drill into a temporary folder.
+- Verify backup hashes.
+- Verify encrypted database decryptability without leaving a plain database copy.
+- UI command for backup and restore drill.
+- Tests for snapshot manifest, encrypted database artifact, and restore drill.
+
+Acceptance criteria:
+
+- User can create a local backup into the configured backup target.
+- Backup includes encrypted vault objects and an encrypted database artifact.
+- Backup does not include a plain SQLite database copy.
+- Restore drill verifies all hashes and encrypted database decryptability.
+- Restore drill does not overwrite the live vault or write a plain database copy.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- `scripts\Start-AppSmoke.ps1`
+
+## Next Slice: Installer and Cross-Machine Test
 
 Build next:
 
-- Local encrypted backup snapshot manifest.
-- Copy encrypted vault objects and SQLite metadata into backup target.
-- Restore drill into a temporary folder.
-- Backup integrity validation.
+- Windows install packaging.
+- Clean-machine smoke path.
+- Restore verification from an encrypted backup snapshot.
+- Installer documentation update.
 
 ## Following Slices
 
-1. Installer and cross-machine verification.
+1. Admin install telemetry and disable flow.
+2. Optional cloud-backup provider adapter.

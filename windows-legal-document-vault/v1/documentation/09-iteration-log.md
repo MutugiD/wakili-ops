@@ -24,7 +24,7 @@ This log tracks V1 planning and implementation progress.
 | 7 | OCR and search | Complete | Local DOCX/text-like PDF extraction, encrypted-vault indexing, SQLite FTS matter search, selected-document indexing UI, and matter search UI. |
 | 8 | Filing-pack builder | Complete | Matter filing-pack export with decrypted document copies, JSON manifest, readiness checklist, and unencrypted export warning. |
 | 9 | Receipt and court-output capture | Complete | Capture filing receipts, payment receipts, notices, court orders, rulings, and judgments into the selected matter through encrypted vault import. |
-| 10 | Backup and restore | Planned | Encrypted snapshots and restore drill. |
+| 10 | Backup and restore | Complete | Encrypted vault-object snapshot, recovery-key encrypted database backup, checksum manifest, restore-drill hash validation, and backup UI command. |
 | 11 | Installer and cross-machine test | Planned | Windows install and restore verification. |
 
 ## Deferred From V1

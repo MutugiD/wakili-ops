@@ -1,12 +1,12 @@
 using System.Windows;
 using WakiliDms.App.ViewModels;
+using WakiliDms.Core.Search;
 using WakiliDms.Infrastructure.Documents;
 using WakiliDms.Infrastructure.Matter;
 using WakiliDms.Infrastructure.Scan;
 using WakiliDms.Infrastructure.Search;
 using WakiliDms.Infrastructure.Settings;
 using WakiliDms.Infrastructure.Vault;
-using WakiliDms.Core.Search;
 
 namespace WakiliDms.App;
 
@@ -25,6 +25,7 @@ public partial class App : Application
         var documentTextExtractor = new LocalDocumentTextExtractor();
         var vaultService = new EncryptedVaultService();
         var viewModel = new MainWindowViewModel(
+            DefaultAppPaths.DatabasePath(),
             settingsStore,
             matterRepository,
             documentRepository,

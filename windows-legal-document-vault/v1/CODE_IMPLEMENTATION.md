@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 10: backup and restore.
+Slice 11: installer and cross-machine test.
 
 Completed:
 
@@ -53,6 +53,13 @@ Completed:
 - Receipt and court-output capture service.
 - WPF receipt/court-output capture controls.
 - Capture tests for filing receipt and non-output rejection.
+- Local backup snapshot service.
+- Recovery-key encrypted database backup artifact.
+- Encrypted vault object backup copy.
+- Backup manifest with checksums.
+- Restore drill that validates hashes and decryptability without writing a plain database copy.
+- Backup and restore drill UI command.
+- Backup and restore drill tests.
 
 ## SDK Requirement
 
@@ -78,5 +85,5 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 8. Slice 7: OCR and search.
 9. Slice 8: filing-pack builder.
 10. Slice 9: receipt and court-output capture.
-11. Slice 10: backup and restore. Current next slice.
-12. Slice 11: installer and cross-machine test.
+11. Slice 10: backup and restore.
+12. Slice 11: installer and cross-machine test. Current next slice.
