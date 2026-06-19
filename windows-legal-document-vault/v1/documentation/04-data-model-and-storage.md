@@ -47,12 +47,16 @@ Fields:
 
 - `id`
 - `matter_id`
-- `title`
+- `original_file_name`
+- `extension`
+- `vault_object_id`
+- `sha256_hash`
+- `byte_length`
 - `document_type`
-- `current_version_id`
 - `status`
-- `created_at`
-- `updated_at`
+- `imported_at`
+
+Slice 4 stores imported file metadata directly in the `documents` table. Later versioning slices can split version-specific fields into `DocumentVersion` once multiple versions per document are implemented.
 
 ### DocumentVersion
 
@@ -207,4 +211,3 @@ Normal-folder exports are allowed for:
 - Restore test output.
 
 Exports must warn the user that normal folders may be unencrypted.
-

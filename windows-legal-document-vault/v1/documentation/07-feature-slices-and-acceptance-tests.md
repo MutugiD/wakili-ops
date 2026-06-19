@@ -81,13 +81,14 @@ Goal:
 Automated tests:
 
 - Hash calculation.
-- Duplicate detection.
+- Encrypted vault storage and readback.
+- Matter document metadata registration.
 - Unsupported file handling.
-- Corrupt file handling.
 
 Manual verification:
 
 - User imports a PDF and sees it under the matter.
+- User imports a DOCX and sees it under the matter.
 
 ## Slice 5: Watched Scan Folder
 
@@ -194,4 +195,3 @@ Manual verification:
 - Install on clean Windows machine.
 - Create or restore vault.
 - Open matter and document.
-

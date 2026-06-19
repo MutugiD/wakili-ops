@@ -1,5 +1,7 @@
 using WakiliDms.Core.Domain;
+using WakiliDms.Core.Documents;
 using WakiliDms.Core.Setup;
+using WakiliDms.Infrastructure.Documents;
 using WakiliDms.Infrastructure.Matter;
 using WakiliDms.Infrastructure.Settings;
 using WakiliDms.Infrastructure.Vault;
@@ -14,7 +16,10 @@ var tests = new (string Name, Action Test)[]
     ("Encrypted vault creates manifest and stores unreadable object bytes", EncryptedVaultStoresUnreadableObjectBytes),
     ("Encrypted vault rejects wrong recovery key", EncryptedVaultRejectsWrongRecoveryKey),
     ("SQLite matter repository persists and lists matters", SqliteMatterRepositoryPersistsAndListsMatters),
-    ("SQLite matter repository updates matter details", SqliteMatterRepositoryUpdatesMatterDetails)
+    ("SQLite matter repository updates matter details", SqliteMatterRepositoryUpdatesMatterDetails),
+    ("Document import stores PDF bytes encrypted and registers metadata", DocumentImportStoresPdfEncryptedAndRegistersMetadata),
+    ("Document import accepts DOCX files and round trips vault bytes", DocumentImportAcceptsDocxAndRoundTripsVaultBytes),
+    ("Document import rejects unsupported file types", DocumentImportRejectsUnsupportedFileTypes)
 };
 
 var failures = 0;
@@ -221,6 +226,148 @@ static void SqliteMatterRepositoryUpdatesMatterDetails()
     }
 }
 
+static void DocumentImportStoresPdfEncryptedAndRegistersMetadata()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var sourcePath = Path.Combine(tempRoot, "plaint.pdf");
+    var recoveryKey = "document import recovery key";
+    var plainText = "%PDF-1.7\nConfidential plaint facts for Jane Doe v Acme Ltd.\n%%EOF";
+    var sourceBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllBytes(sourcePath, sourceBytes);
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Jane Doe v Acme Ltd");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var service = new DocumentImportService(matterRepository, documentRepository, vault);
+        var result = service.ImportAsync(
+            new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Pleading),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(result.Succeeded, result.Error ?? "Document import failed.");
+        Assert(result.Value is not null, "Imported document should be returned.");
+        Assert(result.Value!.OriginalFileName == "plaint.pdf", "Original file name should be stored.");
+        Assert(result.Value.DocumentType == DocumentType.Pleading, "Document type should be stored.");
+        Assert(result.Value.Status == DocumentStatus.Imported, "Imported document should start in Imported status.");
+
+        var documents = documentRepository.ListByMatterAsync(matter.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(documents.Count == 1, "Matter should list the imported document.");
+        Assert(documents[0].VaultObjectId == result.Value.VaultObjectId, "Document should reference the stored vault object.");
+
+        var objectPath = Path.Combine(vaultPath, "objects", $"{result.Value.VaultObjectId}.json");
+        var objectJson = File.ReadAllText(objectPath);
+        Assert(!objectJson.Contains("Confidential plaint facts", StringComparison.Ordinal), "Vault object should not contain plain document text.");
+
+        var read = vault.ReadObjectAsync(vaultPath, recoveryKey, result.Value.VaultObjectId, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(read.Succeeded, read.Error ?? "Vault read failed.");
+        Assert(read.Value is not null, "Vault read should return bytes.");
+        Assert(sourceBytes.SequenceEqual(read.Value!), "Vault bytes should match the imported source file.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void DocumentImportAcceptsDocxAndRoundTripsVaultBytes()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var sourcePath = Path.Combine(tempRoot, "draft-affidavit.docx");
+    var recoveryKey = "docx import recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Draft affidavit content.");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Estate of Test Deceased");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var service = new DocumentImportService(matterRepository, documentRepository, vault);
+        var result = service.ImportAsync(
+            new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Affidavit),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(result.Succeeded, result.Error ?? "DOCX import failed.");
+        Assert(result.Value is not null, "Imported DOCX should be returned.");
+        Assert(result.Value!.Extension == ".docx", "DOCX extension should be stored.");
+
+        var read = vault.ReadObjectAsync(vaultPath, recoveryKey, result.Value.VaultObjectId, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(read.Succeeded, read.Error ?? "Vault read failed.");
+        Assert(File.ReadAllBytes(sourcePath).SequenceEqual(read.Value!), "Stored DOCX bytes should match source bytes.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void DocumentImportRejectsUnsupportedFileTypes()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var sourcePath = Path.Combine(tempRoot, "notes.txt");
+    var recoveryKey = "unsupported import recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "Plain notes should not import in this slice.");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Test Matter");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var service = new DocumentImportService(matterRepository, documentRepository, vault);
+        var result = service.ImportAsync(
+            new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(!result.Succeeded, "Unsupported TXT file should be rejected.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
 static AppSettings ValidSettings()
 {
     return new AppSettings
@@ -233,6 +380,36 @@ static AppSettings ValidSettings()
         RecoveryKeyConfirmed = true,
         CloudBackupEnabled = false
     };
+}
+
+static void CreateMinimalDocx(string path, string bodyText)
+{
+    using var archive = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create);
+    var contentTypes = archive.CreateEntry("[Content_Types].xml");
+    using (var writer = new StreamWriter(contentTypes.Open()))
+    {
+        writer.Write("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+              <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+              <Default Extension="xml" ContentType="application/xml"/>
+              <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+            </Types>
+            """);
+    }
+
+    var document = archive.CreateEntry("word/document.xml");
+    using (var writer = new StreamWriter(document.Open()))
+    {
+        writer.Write($"""
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <w:body>
+                <w:p><w:r><w:t>{System.Security.SecurityElement.Escape(bodyText)}</w:t></w:r></w:p>
+              </w:body>
+            </w:document>
+            """);
+    }
 }
 
 static void Assert(bool condition, string message)
