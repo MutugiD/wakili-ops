@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10 are complete.
+Slices 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, and 11 are complete.
 
 Current code scaffold:
 
@@ -58,6 +58,9 @@ Current implemented behavior:
 - Recovery-key encrypted database backup artifact.
 - Backup checksum manifest.
 - Restore drill verification.
+- Local Windows package scripts.
+- Local install/uninstall scripts generated into the package.
+- Packaged executable smoke test.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -321,14 +324,33 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - `scripts\Start-AppSmoke.ps1`
 
-## Next Slice: Installer and Cross-Machine Test
+## Completed Slice: Installer and Cross-Machine Test
 
-Build next:
+Implemented:
 
 - Windows install packaging.
-- Clean-machine smoke path.
-- Restore verification from an encrypted backup snapshot.
+- Self-contained `win-x64` package build.
+- Framework-dependent package build for CI speed.
+- Current-user install script under `%LOCALAPPDATA%\Programs`.
+- Start Menu shortcut creation.
+- Optional desktop shortcut creation.
+- Uninstall script that preserves user vault data by default.
+- Packaged executable smoke test.
+- CI package smoke step.
 - Installer documentation update.
+
+Acceptance criteria:
+
+- Developer can build a package from the V1 app root.
+- Package includes executable, install script, uninstall script, run command, README, and manifest.
+- Packaged app starts without using the source tree.
+- Local install does not require administrator privileges.
+- Uninstall preserves user vault data unless explicitly told to delete it.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1 -FrameworkDependent`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1`
 
 ## Following Slices
 

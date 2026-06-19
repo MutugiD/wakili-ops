@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 11: installer and cross-machine test.
+Slice 12: admin install telemetry and disable flow.
 
 Completed:
 
@@ -60,6 +60,11 @@ Completed:
 - Restore drill that validates hashes and decryptability without writing a plain database copy.
 - Backup and restore drill UI command.
 - Backup and restore drill tests.
+- Local Windows package build script.
+- Self-contained and framework-dependent package modes.
+- Generated current-user install/uninstall scripts.
+- Packaged executable smoke test.
+- CI package smoke step.
 
 ## SDK Requirement
 
@@ -86,4 +91,5 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 9. Slice 8: filing-pack builder.
 10. Slice 9: receipt and court-output capture.
 11. Slice 10: backup and restore.
-12. Slice 11: installer and cross-machine test. Current next slice.
+12. Slice 11: installer and cross-machine test.
+13. Slice 12: admin install telemetry and disable flow. Current next slice.

@@ -108,3 +108,6 @@ jobs:
           } else {
             throw "App exited early with code $($proc.ExitCode)"
           }
+
+      - name: Windows package smoke
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/Test-WindowsPackage.ps1 -FrameworkDependent
