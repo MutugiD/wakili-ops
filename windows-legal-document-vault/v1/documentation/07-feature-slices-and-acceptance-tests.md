@@ -173,10 +173,12 @@ Automated tests:
 
 - Receipt attachment.
 - Prepared to Filed transition requires confirmation.
+- Non-output document types are rejected by court-output capture.
 
 Manual verification:
 
 - User attaches receipt and filing pack status becomes Filed.
+- User captures a receipt/order/ruling/judgment/notice into the selected matter.
 
 ## Slice 10: Backup and Restore
 

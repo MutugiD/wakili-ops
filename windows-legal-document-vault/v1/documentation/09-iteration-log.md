@@ -23,7 +23,7 @@ This log tracks V1 planning and implementation progress.
 | 6 | Classification and versioning | Complete | Document type/status editing, filed/served immutability, initial version metadata on import, SQLite document version storage, and selected-document version list UI. |
 | 7 | OCR and search | Complete | Local DOCX/text-like PDF extraction, encrypted-vault indexing, SQLite FTS matter search, selected-document indexing UI, and matter search UI. |
 | 8 | Filing-pack builder | Complete | Matter filing-pack export with decrypted document copies, JSON manifest, readiness checklist, and unencrypted export warning. |
-| 9 | Receipt and court-output capture | Planned | Attach receipts, notices, orders, registry messages. |
+| 9 | Receipt and court-output capture | Complete | Capture filing receipts, payment receipts, notices, court orders, rulings, and judgments into the selected matter through encrypted vault import. |
 | 10 | Backup and restore | Planned | Encrypted snapshots and restore drill. |
 | 11 | Installer and cross-machine test | Planned | Windows install and restore verification. |
 
