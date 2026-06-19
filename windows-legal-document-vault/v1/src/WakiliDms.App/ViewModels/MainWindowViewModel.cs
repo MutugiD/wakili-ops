@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Matter;
+using WakiliDms.Core.Scan;
 using WakiliDms.Core.Setup;
 using WakiliDms.Core.Vault;
 
@@ -13,8 +14,10 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly ISettingsStore _settingsStore;
     private readonly IMatterRepository _matterRepository;
     private readonly IDocumentRepository _documentRepository;
+    private readonly IScanInboxRepository _scanInboxRepository;
     private readonly IVaultService _vaultService;
     private readonly DocumentImportService _documentImportService;
+    private readonly ScanFolderService _scanFolderService;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
     private string _vaultPath = string.Empty;
@@ -27,6 +30,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _importSourceFilePath = string.Empty;
     private string _importRecoveryKey = string.Empty;
     private MatterListItemViewModel? _selectedMatter;
+    private ScanInboxItemViewModel? _selectedScan;
     private bool _recoveryKeyConfirmed;
     private bool _isSetupComplete;
     private string _statusMessage = "Complete setup to create a local-first document vault.";
@@ -35,16 +39,21 @@ public sealed class MainWindowViewModel : ObservableObject
         ISettingsStore settingsStore,
         IMatterRepository matterRepository,
         IDocumentRepository documentRepository,
+        IScanInboxRepository scanInboxRepository,
         IVaultService vaultService)
     {
         _settingsStore = settingsStore;
         _matterRepository = matterRepository;
         _documentRepository = documentRepository;
+        _scanInboxRepository = scanInboxRepository;
         _vaultService = vaultService;
         _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _vaultService);
+        _scanFolderService = new ScanFolderService(_scanInboxRepository);
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
         ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
+        RefreshScanFolderCommand = new AsyncRelayCommand(RefreshScanFolderAsync, () => IsSetupComplete);
+        ImportSelectedScanCommand = new AsyncRelayCommand(ImportSelectedScanAsync, () => IsSetupComplete && SelectedMatter is not null && SelectedScan is not null);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -125,7 +134,20 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetProperty(ref _selectedMatter, value))
             {
                 (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 _ = ReloadDocumentsForSelectionAsync();
+            }
+        }
+    }
+
+    public ScanInboxItemViewModel? SelectedScan
+    {
+        get => _selectedScan;
+        set
+        {
+            if (SetProperty(ref _selectedScan, value))
+            {
+                (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -146,6 +168,8 @@ public sealed class MainWindowViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsSetupRequired));
                 (CreateMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (RefreshScanFolderCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -164,9 +188,15 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand ImportDocumentCommand { get; }
 
+    public ICommand RefreshScanFolderCommand { get; }
+
+    public ICommand ImportSelectedScanCommand { get; }
+
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
     public ObservableCollection<DocumentListItemViewModel> Documents { get; } = [];
+
+    public ObservableCollection<ScanInboxItemViewModel> ScanInbox { get; } = [];
 
     public IReadOnlyList<string> NextModules { get; } =
     [
@@ -174,6 +204,7 @@ public sealed class MainWindowViewModel : ObservableObject
         "Encrypted vault",
         "Matter management",
         "Document import",
+        "Scan inbox",
         "Classification and versioning"
     ];
 
@@ -181,6 +212,7 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         await _matterRepository.InitializeAsync(CancellationToken.None);
         await _documentRepository.InitializeAsync(CancellationToken.None);
+        await _scanInboxRepository.InitializeAsync(CancellationToken.None);
 
         var settings = await _settingsStore.LoadAsync(CancellationToken.None);
         if (settings is null || settings.SetupCompletedAt is null)
@@ -198,6 +230,7 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"Vault setup complete for {settings.FirmName}.";
         IsSetupComplete = true;
         await ReloadMattersAsync();
+        await ReloadScanInboxAsync();
     }
 
     public async Task CompleteSetupAsync()
@@ -239,6 +272,7 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"Vault setup complete for {settings.FirmName}.";
         IsSetupComplete = true;
         await ReloadMattersAsync();
+        await ReloadScanInboxAsync();
     }
 
     public async Task CreateMatterAsync()
@@ -296,6 +330,63 @@ public sealed class MainWindowViewModel : ObservableObject
         await ReloadDocumentsForSelectionAsync();
     }
 
+    public async Task RefreshScanFolderAsync()
+    {
+        if (!IsSetupComplete)
+        {
+            StatusMessage = "Complete setup before scanning the watched folder.";
+            return;
+        }
+
+        var result = await _scanFolderService.ScanOnceAsync(ScanFolderPath, CancellationToken.None);
+        if (!result.Succeeded || result.Value is null)
+        {
+            StatusMessage = result.Error ?? "Scan folder refresh failed.";
+            return;
+        }
+
+        StatusMessage = $"Scan folder refreshed: {result.Value.QueuedCount} queued, {result.Value.DuplicateCount} duplicates, {result.Value.IgnoredCount} ignored.";
+        await ReloadScanInboxAsync();
+    }
+
+    public async Task ImportSelectedScanAsync()
+    {
+        if (SelectedMatter is null)
+        {
+            StatusMessage = "Select a matter before importing a pending scan.";
+            return;
+        }
+
+        if (SelectedScan is null)
+        {
+            StatusMessage = "Select a pending scan before importing.";
+            return;
+        }
+
+        var request = new DocumentImportRequest(
+            SelectedMatter.Id,
+            SelectedScan.SourcePath,
+            VaultPath,
+            ImportRecoveryKey);
+
+        var result = await _documentImportService.ImportAsync(request, CancellationToken.None);
+        if (!result.Succeeded || result.Value is null)
+        {
+            StatusMessage = result.Error ?? "Pending scan import failed.";
+            return;
+        }
+
+        await _scanInboxRepository.MarkImportedAsync(
+            SelectedScan.Id,
+            result.Value.Id,
+            DateTimeOffset.UtcNow,
+            CancellationToken.None);
+
+        StatusMessage = $"Imported scan {result.Value.OriginalFileName} into {SelectedMatter.Name}.";
+        await ReloadScanInboxAsync();
+        await ReloadDocumentsForSelectionAsync();
+    }
+
     private async Task ReloadMattersAsync()
     {
         var selectedMatterId = SelectedMatter?.Id;
@@ -324,6 +415,22 @@ public sealed class MainWindowViewModel : ObservableObject
         foreach (var document in documents)
         {
             Documents.Add(new DocumentListItemViewModel(document));
+        }
+    }
+
+    private async Task ReloadScanInboxAsync()
+    {
+        var selectedScanId = SelectedScan?.Id;
+        ScanInbox.Clear();
+        var items = await _scanInboxRepository.ListPendingAsync(CancellationToken.None);
+        foreach (var item in items)
+        {
+            ScanInbox.Add(new ScanInboxItemViewModel(item));
+        }
+
+        if (selectedScanId is not null)
+        {
+            SelectedScan = ScanInbox.FirstOrDefault(item => item.Id == selectedScanId.Value);
         }
     }
 }

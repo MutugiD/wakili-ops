@@ -77,6 +77,23 @@ Fields:
 - `created_at`
 - `notes`
 
+### ScanInboxItem
+
+Fields:
+
+- `id`
+- `source_path`
+- `original_file_name`
+- `extension`
+- `sha256_hash`
+- `byte_length`
+- `status`
+- `document_id`
+- `detected_at`
+- `imported_at`
+
+Scan inbox rows represent files detected in the configured watched scan folder before they are attached to a matter. The inbox stores metadata only; document bytes remain in the scan folder until the user imports the pending scan into a matter, at which point the import service writes encrypted bytes into the vault.
+
 ### FilingPack
 
 Fields:

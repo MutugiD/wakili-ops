@@ -19,7 +19,7 @@ This log tracks V1 planning and implementation progress.
 | 2 | Encrypted vault | Complete | Vault manifest, recovery-key unlock, encrypted object storage/readback, wrong-key failure, and unreadable-object tests verified. |
 | 3 | Matter management | Complete | SQLite matter repository, create/list/update tests, UI matter creation form, matter list, and app startup smoke verified. |
 | 4 | Document import | Complete | Manual DOC, DOCX, and PDF import into selected matter with supported file checks, encrypted vault storage, hash metadata, SQLite document registration, and UI matter document list. |
-| 5 | Watched scan folder | Planned | Scanner-folder workflow. |
+| 5 | Watched scan folder | Complete | On-demand watched folder refresh queues supported DOC, DOCX, and PDF files into a pending scan inbox, ignores unsupported files, avoids duplicate queue entries, and imports selected scans into selected matters. |
 | 6 | Classification and versioning | Planned | Document type and lifecycle status. |
 | 7 | OCR and search | Planned | Local OCR adapter and SQLite FTS. |
 | 8 | Filing-pack builder | Planned | Manual e-filing export package. |

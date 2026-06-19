@@ -173,6 +173,19 @@
                             HorizontalAlignment="Left"
                             Padding="18,8"
                             Margin="0,14,0,0" />
+
+                    <TextBlock Text="Scan inbox" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
+                    <Button Content="Refresh watched scan folder"
+                            Command="{Binding RefreshScanFolderCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,0,0,0" />
+
+                    <Button Content="Import selected scan"
+                            Command="{Binding ImportSelectedScanCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
                 </StackPanel>
             </Border>
 
@@ -183,67 +196,95 @@
                     Padding="20"
                     Margin="20,0,0,0"
                     CornerRadius="6">
-                <StackPanel>
-                    <TextBlock Text="Current status"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="#111827" />
-                    <TextBlock Text="Setup, encrypted vault, matter management, and document import are active."
-                               TextWrapping="Wrap"
-                               Foreground="#374151"
-                               Margin="0,10,0,0" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Current status"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827" />
+                        <TextBlock Text="Setup, encrypted vault, matter management, document import, and scan inbox are active."
+                                   TextWrapping="Wrap"
+                                   Foreground="#374151"
+                                   Margin="0,10,0,0" />
 
-                    <TextBlock Text="Matters"
-                               FontSize="16"
-                               FontWeight="SemiBold"
-                               Foreground="#111827"
-                               Margin="0,20,0,8" />
-                    <ListBox ItemsSource="{Binding Matters}"
-                             SelectedItem="{Binding SelectedMatter}"
-                             BorderThickness="0"
-                             MaxHeight="220">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border BorderBrush="#E5E7EB"
-                                        BorderThickness="1"
-                                        Padding="10"
-                                        Margin="0,0,0,8"
-                                        CornerRadius="4">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#111827" />
-                                        <TextBlock Text="{Binding ClientName}" Foreground="#374151" Margin="0,4,0,0" />
-                                        <TextBlock Text="{Binding CourtCaseNumber}" Foreground="#6B7280" Margin="0,2,0,0" />
-                                        <TextBlock Text="{Binding UpdatedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                        <TextBlock Text="Matters"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   Margin="0,20,0,8" />
+                        <ListBox ItemsSource="{Binding Matters}"
+                                 SelectedItem="{Binding SelectedMatter}"
+                                 BorderThickness="0"
+                                 MaxHeight="180">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#E5E7EB"
+                                            BorderThickness="1"
+                                            Padding="10"
+                                            Margin="0,0,0,8"
+                                            CornerRadius="4">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#111827" />
+                                            <TextBlock Text="{Binding ClientName}" Foreground="#374151" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding CourtCaseNumber}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding UpdatedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
 
-                    <TextBlock Text="Matter documents"
-                               FontSize="16"
-                               FontWeight="SemiBold"
-                               Foreground="#111827"
-                               Margin="0,20,0,8" />
-                    <ItemsControl ItemsSource="{Binding Documents}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border BorderBrush="#E5E7EB"
-                                        BorderThickness="1"
-                                        Padding="10"
-                                        Margin="0,0,0,8"
-                                        CornerRadius="4">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding OriginalFileName}" FontWeight="SemiBold" Foreground="#111827" />
-                                        <TextBlock Text="{Binding Status}" Foreground="#374151" Margin="0,4,0,0" />
-                                        <TextBlock Text="{Binding ByteLength}" Foreground="#6B7280" Margin="0,2,0,0" />
-                                        <TextBlock Text="{Binding ImportedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
+                        <TextBlock Text="Pending scans"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   Margin="0,20,0,8" />
+                        <ListBox ItemsSource="{Binding ScanInbox}"
+                                 SelectedItem="{Binding SelectedScan}"
+                                 BorderThickness="0"
+                                 MaxHeight="180">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#E5E7EB"
+                                            BorderThickness="1"
+                                            Padding="10"
+                                            Margin="0,0,0,8"
+                                            CornerRadius="4">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding OriginalFileName}" FontWeight="SemiBold" Foreground="#111827" />
+                                            <TextBlock Text="{Binding ByteLength}" Foreground="#6B7280" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding DetectedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <TextBlock Text="Matter documents"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   Margin="0,20,0,8" />
+                        <ItemsControl ItemsSource="{Binding Documents}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#E5E7EB"
+                                            BorderThickness="1"
+                                            Padding="10"
+                                            Margin="0,0,0,8"
+                                            CornerRadius="4">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding OriginalFileName}" FontWeight="SemiBold" Foreground="#111827" />
+                                            <TextBlock Text="{Binding Status}" Foreground="#374151" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding ByteLength}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding ImportedAt}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
     </Grid>
