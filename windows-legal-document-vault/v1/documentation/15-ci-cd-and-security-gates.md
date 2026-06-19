@@ -10,6 +10,7 @@ The product handles confidential legal files, so CI must prove more than "the ap
 
 Repository-level automation:
 
+- `.github/workflows/repository-governance.yml`
 - `.github/workflows/windows-legal-document-vault-v1-ci.yml`
 - `.github/workflows/codeql.yml`
 - `.github/dependabot.yml`
@@ -36,6 +37,46 @@ CI runs on:
 CodeQL also runs weekly.
 
 ## Required CI Gates
+
+### Product Structure
+
+Command:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Assert-ProductStructure.ps1
+```
+
+Purpose:
+
+- Confirms each product has a versioned scaffold.
+- Confirms the first product keeps app code under `windows-legal-document-vault/v1`.
+- Prevents future products from being added as loose root-level folders.
+
+### Markdown Links
+
+Command:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Test-MarkdownLinks.ps1
+```
+
+Purpose:
+
+- Ensures local documentation links resolve.
+- Prevents broken handoff docs.
+
+### Product Naming
+
+Command:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Test-NoLegacySolutionLabels.ps1
+```
+
+Purpose:
+
+- Keeps docs and code self-explanatory.
+- Prevents reintroducing numbered product labels.
 
 ### Restore
 
@@ -220,4 +261,3 @@ if (-not $proc.HasExited) {
   throw "App exited early with code $($proc.ExitCode)"
 }
 ```
-

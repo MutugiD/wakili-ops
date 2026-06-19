@@ -48,6 +48,18 @@ jobs:
       - name: Show .NET info
         run: dotnet --info
 
+      - name: Validate product/version structure
+        working-directory: .
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Assert-ProductStructure.ps1
+
+      - name: Validate markdown links
+        working-directory: .
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Test-MarkdownLinks.ps1
+
+      - name: Reject legacy numbered product labels
+        working-directory: .
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/ci/Test-NoLegacySolutionLabels.ps1
+
       - name: Restore
         run: dotnet restore WakiliDms.sln
 
@@ -79,4 +91,3 @@ jobs:
           } else {
             throw "App exited early with code $($proc.ExitCode)"
           }
-

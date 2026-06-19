@@ -52,7 +52,7 @@ This solves a court submission problem, but not the law firm document ownership 
 
 The implementation-focused V1 handbook is separate from this strategic documentation pack:
 
-- [windows-legal-document-vault/v1](../windows-legal-document-vault/v1/README.md): feature-by-feature build plan, architecture, data model, UI workflows, testing, and iteration log.
+- [windows-legal-document-vault/v1](../windows-legal-document-vault/v1/documentation/README.md): feature-by-feature build plan, architecture, data model, UI workflows, testing, and iteration log.
 
 ## First Build Principle
 
