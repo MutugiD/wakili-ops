@@ -160,6 +160,7 @@ This is mandatory because the app stores legal documents and encrypted backups.
 Tool:
 
 - Gitleaks GitHub Action.
+- Uses `gitleaks/gitleaks-action@v3` with Node 24-compatible GitHub Actions runtime.
 
 Purpose:
 
