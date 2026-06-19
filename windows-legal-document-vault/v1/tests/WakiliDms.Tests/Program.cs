@@ -1,3 +1,4 @@
+using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Filing;
@@ -33,7 +34,9 @@ var tests = new (string Name, Action Test)[]
     ("DOCX text extractor returns searchable body text", DocxTextExtractorReturnsSearchableBodyText),
     ("Document indexing searches encrypted DOCX by matter", DocumentIndexingSearchesEncryptedDocxByMatter),
     ("Text-like PDF extraction can be indexed and searched", TextLikePdfExtractionCanBeIndexedAndSearched),
-    ("Filing pack export writes decrypted copies and manifest", FilingPackExportWritesDecryptedCopiesAndManifest)
+    ("Filing pack export writes decrypted copies and manifest", FilingPackExportWritesDecryptedCopiesAndManifest),
+    ("Court output capture stores filing receipt under matter", CourtOutputCaptureStoresFilingReceiptUnderMatter),
+    ("Court output capture rejects non-output document type", CourtOutputCaptureRejectsNonOutputDocumentType)
 };
 
 var failures = 0;
@@ -816,6 +819,71 @@ static void FilingPackExportWritesDecryptedCopiesAndManifest()
             Directory.Delete(tempRoot, recursive: true);
         }
     }
+}
+
+static void CourtOutputCaptureStoresFilingReceiptUnderMatter()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var receiptPath = Path.Combine(tempRoot, "efiling-receipt.pdf");
+    var recoveryKey = "court output recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(receiptPath, "%PDF-1.7\nE-filing receipt number KEN-12345\n%%EOF");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Jane Doe v Acme Ltd");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
+        var captureService = new CourtOutputCaptureService(importService);
+        var captured = captureService.CaptureAsync(
+            new CourtOutputCaptureRequest(matter.Id, receiptPath, vaultPath, recoveryKey, DocumentType.FilingReceipt),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(captured.Succeeded, captured.Error ?? "Receipt capture failed.");
+        Assert(captured.Value is not null, "Captured receipt should be returned.");
+        Assert(captured.Value!.DocumentType == DocumentType.FilingReceipt, "Captured document type should be filing receipt.");
+
+        var documents = documentRepository.ListByMatterAsync(matter.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(documents.Count == 1, "Matter should contain the captured receipt.");
+        Assert(documents[0].OriginalFileName == "efiling-receipt.pdf", "Captured receipt file name should round trip.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void CourtOutputCaptureRejectsNonOutputDocumentType()
+{
+    var dbPath = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"), "wakili-dms.db");
+    var importService = new DocumentImportService(
+        new SqliteMatterRepository(dbPath),
+        new SqliteDocumentRepository(dbPath),
+        new SqliteDocumentVersionRepository(dbPath),
+        new EncryptedVaultService());
+    var captureService = new CourtOutputCaptureService(importService);
+
+    var result = captureService.CaptureAsync(
+        new CourtOutputCaptureRequest(Guid.NewGuid(), "plaint.pdf", "vault", "key", DocumentType.Pleading),
+        CancellationToken.None).GetAwaiter().GetResult();
+
+    Assert(!result.Succeeded, "Court output capture should reject pleading document type.");
 }
 
 static AppSettings ValidSettings()

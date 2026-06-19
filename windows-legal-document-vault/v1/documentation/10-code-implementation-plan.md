@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, 4, 5, 6, 7, and 8 are complete.
+Slices 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9 are complete.
 
 Current code scaffold:
 
@@ -53,6 +53,7 @@ Current implemented behavior:
 - Matter search command and result list.
 - Matter filing-pack export.
 - Filing-pack manifest and readiness checklist generation.
+- Receipt and court-output capture.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -265,15 +266,38 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - `scripts\Start-AppSmoke.ps1`
 
-## Next Slice: Receipt and Court-Output Capture
+## Completed Slice: Receipt and Court-Output Capture
 
-Build next:
+Implemented:
 
 - Attach portal receipts and court outputs to matters.
 - Classify receipts/orders/notices separately from filing-pack source documents.
-- Preserve filed output metadata and checklist links.
+- Reject non-output document types for court-output capture.
+- UI controls for receipt/order/ruling/judgment/notice capture.
+- Tests for filing receipt capture and non-output rejection.
+
+Acceptance criteria:
+
+- User can capture filing receipts and court outputs into the selected matter.
+- Captured files are stored as encrypted vault objects.
+- Captured files appear in the matter document list with the selected output type.
+- Pleadings and other non-output types are rejected by this capture path.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- `scripts\Start-AppSmoke.ps1`
+
+## Next Slice: Backup and Restore
+
+Build next:
+
+- Local encrypted backup snapshot manifest.
+- Copy encrypted vault objects and SQLite metadata into backup target.
+- Restore drill into a temporary folder.
+- Backup integrity validation.
 
 ## Following Slices
 
-1. Backup and restore.
-2. Installer and cross-machine verification.
+1. Installer and cross-machine verification.

@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using System.Collections.ObjectModel;
+using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Filing;
@@ -24,6 +25,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly ScanFolderService _scanFolderService;
     private readonly DocumentIndexingService _documentIndexingService;
     private readonly FilingPackExportService _filingPackExportService;
+    private readonly CourtOutputCaptureService _courtOutputCaptureService;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
     private string _vaultPath = string.Empty;
@@ -36,7 +38,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _importSourceFilePath = string.Empty;
     private string _importRecoveryKey = string.Empty;
     private string _filingPackExportRootPath = string.Empty;
+    private string _courtOutputSourceFilePath = string.Empty;
     private string _searchQuery = string.Empty;
+    private DocumentType _selectedCourtOutputType = DocumentType.FilingReceipt;
     private MatterListItemViewModel? _selectedMatter;
     private DocumentListItemViewModel? _selectedDocument;
     private DocumentType _selectedDocumentType = DocumentType.Unknown;
@@ -67,6 +71,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _scanFolderService = new ScanFolderService(_scanInboxRepository);
         _documentIndexingService = new DocumentIndexingService(_documentRepository, _vaultService, documentTextExtractor, _documentSearchRepository);
         _filingPackExportService = new FilingPackExportService(_matterRepository, _documentRepository, _vaultService);
+        _courtOutputCaptureService = new CourtOutputCaptureService(_documentImportService);
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => IsSetupComplete);
         ImportDocumentCommand = new AsyncRelayCommand(ImportDocumentAsync, () => IsSetupComplete && SelectedMatter is not null);
@@ -76,6 +81,7 @@ public sealed class MainWindowViewModel : ObservableObject
         IndexSelectedDocumentCommand = new AsyncRelayCommand(IndexSelectedDocumentAsync, () => IsSetupComplete && SelectedDocument is not null);
         SearchMatterCommand = new AsyncRelayCommand(SearchMatterAsync, () => IsSetupComplete && SelectedMatter is not null);
         ExportFilingPackCommand = new AsyncRelayCommand(ExportFilingPackAsync, () => IsSetupComplete && SelectedMatter is not null && Documents.Count > 0);
+        CaptureCourtOutputCommand = new AsyncRelayCommand(CaptureCourtOutputAsync, () => IsSetupComplete && SelectedMatter is not null);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -160,6 +166,18 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _filingPackExportRootPath, value);
     }
 
+    public string CourtOutputSourceFilePath
+    {
+        get => _courtOutputSourceFilePath;
+        set => SetProperty(ref _courtOutputSourceFilePath, value);
+    }
+
+    public DocumentType SelectedCourtOutputType
+    {
+        get => _selectedCourtOutputType;
+        set => SetProperty(ref _selectedCourtOutputType, value);
+    }
+
     public MatterListItemViewModel? SelectedMatter
     {
         get => _selectedMatter;
@@ -240,6 +258,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 (IndexSelectedDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (SearchMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (CaptureCourtOutputCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -270,6 +289,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand ExportFilingPackCommand { get; }
 
+    public ICommand CaptureCourtOutputCommand { get; }
+
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
     public ObservableCollection<DocumentListItemViewModel> Documents { get; } = [];
@@ -284,6 +305,16 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public IReadOnlyList<DocumentStatus> DocumentStatusOptions { get; } = Enum.GetValues<DocumentStatus>();
 
+    public IReadOnlyList<DocumentType> CourtOutputTypeOptions { get; } =
+    [
+        DocumentType.FilingReceipt,
+        DocumentType.PaymentReceipt,
+        DocumentType.CourtOrder,
+        DocumentType.Ruling,
+        DocumentType.Judgment,
+        DocumentType.Notice
+    ];
+
     public IReadOnlyList<string> NextModules { get; } =
     [
         "Setup wizard",
@@ -293,7 +324,8 @@ public sealed class MainWindowViewModel : ObservableObject
         "Scan inbox",
         "Classification and versioning",
         "OCR and search",
-        "Filing-pack builder"
+        "Filing-pack builder",
+        "Receipt and court-output capture"
     ];
 
     public async Task LoadAsync()
@@ -574,6 +606,34 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         StatusMessage = $"Filing pack exported {result.Value.ExportedDocumentCount:N0} document(s) to {result.Value.ExportDirectory}.";
+    }
+
+    public async Task CaptureCourtOutputAsync()
+    {
+        if (SelectedMatter is null)
+        {
+            StatusMessage = "Select a matter before capturing a receipt or court output.";
+            return;
+        }
+
+        var result = await _courtOutputCaptureService.CaptureAsync(
+            new CourtOutputCaptureRequest(
+                SelectedMatter.Id,
+                CourtOutputSourceFilePath,
+                VaultPath,
+                ImportRecoveryKey,
+                SelectedCourtOutputType),
+            CancellationToken.None);
+
+        if (!result.Succeeded || result.Value is null)
+        {
+            StatusMessage = result.Error ?? "Receipt or court-output capture failed.";
+            return;
+        }
+
+        CourtOutputSourceFilePath = string.Empty;
+        StatusMessage = $"Captured {result.Value.DocumentType}: {result.Value.OriginalFileName}.";
+        await ReloadDocumentsForSelectionAsync(result.Value.Id);
     }
 
 
