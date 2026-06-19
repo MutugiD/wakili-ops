@@ -7,13 +7,6 @@ namespace WakiliDms.Core.Documents;
 
 public sealed class DocumentImportService
 {
-    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".doc",
-        ".docx",
-        ".pdf"
-    };
-
     private readonly IMatterRepository _matterRepository;
     private readonly IDocumentRepository _documentRepository;
     private readonly IVaultService _vaultService;
@@ -91,8 +84,7 @@ public sealed class DocumentImportService
             return Result.Fail("Source document was not found.");
         }
 
-        var extension = Path.GetExtension(request.SourceFilePath);
-        if (!AllowedExtensions.Contains(extension))
+        if (!DocumentFilePolicy.IsSupported(request.SourceFilePath))
         {
             return Result.Fail("Only DOC, DOCX, and PDF files can be imported in this slice.");
         }

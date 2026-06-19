@@ -1,8 +1,10 @@
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Setup;
+using WakiliDms.Core.Scan;
 using WakiliDms.Infrastructure.Documents;
 using WakiliDms.Infrastructure.Matter;
+using WakiliDms.Infrastructure.Scan;
 using WakiliDms.Infrastructure.Settings;
 using WakiliDms.Infrastructure.Vault;
 
@@ -19,7 +21,9 @@ var tests = new (string Name, Action Test)[]
     ("SQLite matter repository updates matter details", SqliteMatterRepositoryUpdatesMatterDetails),
     ("Document import stores PDF bytes encrypted and registers metadata", DocumentImportStoresPdfEncryptedAndRegistersMetadata),
     ("Document import accepts DOCX files and round trips vault bytes", DocumentImportAcceptsDocxAndRoundTripsVaultBytes),
-    ("Document import rejects unsupported file types", DocumentImportRejectsUnsupportedFileTypes)
+    ("Document import rejects unsupported file types", DocumentImportRejectsUnsupportedFileTypes),
+    ("Scan folder queues supported files once", ScanFolderQueuesSupportedFilesOnce),
+    ("Scan inbox import marks pending scan imported", ScanInboxImportMarksPendingScanImported)
 };
 
 var failures = 0;
@@ -358,6 +362,108 @@ static void DocumentImportRejectsUnsupportedFileTypes()
             CancellationToken.None).GetAwaiter().GetResult();
 
         Assert(!result.Succeeded, "Unsupported TXT file should be rejected.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void ScanFolderQueuesSupportedFilesOnce()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var scanFolderPath = Path.Combine(tempRoot, "scan");
+
+    try
+    {
+        Directory.CreateDirectory(scanFolderPath);
+        File.WriteAllText(Path.Combine(scanFolderPath, "registry-notice.pdf"), "%PDF-1.7\nRegistry notice\n%%EOF");
+        File.WriteAllText(Path.Combine(scanFolderPath, "desktop.ini"), "Not a legal document.");
+
+        var repository = new SqliteScanInboxRepository(dbPath);
+        repository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        var service = new ScanFolderService(repository);
+
+        var first = service.ScanOnceAsync(scanFolderPath, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(first.Succeeded, first.Error ?? "First scan failed.");
+        Assert(first.Value is not null, "First scan result should be returned.");
+        Assert(first.Value!.QueuedCount == 1, "First scan should queue one supported file.");
+        Assert(first.Value.IgnoredCount == 1, "First scan should ignore one unsupported file.");
+        Assert(first.Value.DuplicateCount == 0, "First scan should not count duplicates.");
+
+        var second = service.ScanOnceAsync(scanFolderPath, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(second.Succeeded, second.Error ?? "Second scan failed.");
+        Assert(second.Value is not null, "Second scan result should be returned.");
+        Assert(second.Value!.QueuedCount == 0, "Second scan should not queue the same file twice.");
+        Assert(second.Value.DuplicateCount == 1, "Second scan should count the supported file as duplicate.");
+
+        var pending = repository.ListPendingAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert(pending.Count == 1, "Scan inbox should contain one pending file.");
+        Assert(pending[0].OriginalFileName == "registry-notice.pdf", "Pending scan should keep the original file name.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void ScanInboxImportMarksPendingScanImported()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var scanFolderPath = Path.Combine(tempRoot, "scan");
+    var sourcePath = Path.Combine(scanFolderPath, "signed-affidavit.pdf");
+    var recoveryKey = "scan inbox import recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(scanFolderPath);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nSigned affidavit from scanner\n%%EOF");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var scanInboxRepository = new SqliteScanInboxRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        scanInboxRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+
+        var matter = Matter.Create("Jane Doe v Acme Ltd");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var scanService = new ScanFolderService(scanInboxRepository);
+        var scan = scanService.ScanOnceAsync(scanFolderPath, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(scan.Succeeded, scan.Error ?? "Scan folder refresh failed.");
+
+        var pending = scanInboxRepository.ListPendingAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert(pending.Count == 1, "Pending scan should be queued before import.");
+
+        var importService = new DocumentImportService(matterRepository, documentRepository, vault);
+        var imported = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, pending[0].SourcePath, vaultPath, recoveryKey, DocumentType.Affidavit),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(imported.Succeeded, imported.Error ?? "Pending scan import failed.");
+        Assert(imported.Value is not null, "Imported pending scan should return a document.");
+
+        scanInboxRepository.MarkImportedAsync(
+            pending[0].Id,
+            imported.Value!.Id,
+            DateTimeOffset.UtcNow,
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        var pendingAfterImport = scanInboxRepository.ListPendingAsync(CancellationToken.None).GetAwaiter().GetResult();
+        var documents = documentRepository.ListByMatterAsync(matter.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(pendingAfterImport.Count == 0, "Imported scan should leave the pending inbox.");
+        Assert(documents.Count == 1, "Imported scan should register one matter document.");
     }
     finally
     {

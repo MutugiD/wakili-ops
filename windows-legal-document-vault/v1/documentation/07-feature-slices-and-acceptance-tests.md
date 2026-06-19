@@ -98,12 +98,15 @@ Goal:
 
 Automated tests:
 
-- File watcher queues file.
+- Scan folder refresh queues supported files.
+- Unsupported files are ignored.
 - Duplicate scanned file is flagged.
+- Pending scan can be imported into a selected matter.
 
 Manual verification:
 
-- Dropping a PDF in scan folder shows it in Scan Inbox.
+- Dropping a PDF in scan folder and refreshing shows it in Scan Inbox.
+- Importing a pending scan moves it into the selected matter document list.
 
 ## Slice 6: Classification and Versioning
 

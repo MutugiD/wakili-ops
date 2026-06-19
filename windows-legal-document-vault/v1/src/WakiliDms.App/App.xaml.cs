@@ -2,6 +2,7 @@ using System.Windows;
 using WakiliDms.App.ViewModels;
 using WakiliDms.Infrastructure.Documents;
 using WakiliDms.Infrastructure.Matter;
+using WakiliDms.Infrastructure.Scan;
 using WakiliDms.Infrastructure.Settings;
 using WakiliDms.Infrastructure.Vault;
 
@@ -16,8 +17,14 @@ public partial class App : Application
         var settingsStore = new JsonSettingsStore(DefaultAppPaths.SettingsPath());
         var matterRepository = new SqliteMatterRepository(DefaultAppPaths.DatabasePath());
         var documentRepository = new SqliteDocumentRepository(DefaultAppPaths.DatabasePath());
+        var scanInboxRepository = new SqliteScanInboxRepository(DefaultAppPaths.DatabasePath());
         var vaultService = new EncryptedVaultService();
-        var viewModel = new MainWindowViewModel(settingsStore, matterRepository, documentRepository, vaultService);
+        var viewModel = new MainWindowViewModel(
+            settingsStore,
+            matterRepository,
+            documentRepository,
+            scanInboxRepository,
+            vaultService);
         await viewModel.LoadAsync();
 
         var window = new MainWindow(viewModel);

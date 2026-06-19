@@ -4,7 +4,7 @@ This document tracks how the Windows Legal Document Vault codebase should grow m
 
 ## Current Baseline
 
-Slices 0, 1, 2, 3, and 4 are complete.
+Slices 0, 1, 2, 3, 4, and 5 are complete.
 
 Current code scaffold:
 
@@ -39,6 +39,10 @@ Current implemented behavior:
 - Manual DOC, DOCX, and PDF import service.
 - Imported document metadata registration.
 - Matter document list UI.
+- SQLite scan inbox repository.
+- Watched scan folder refresh service.
+- Pending scan inbox UI.
+- Pending scan import into selected matter.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -155,21 +159,45 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - WPF app startup smoke.
 
-## Next Slice: Watched Scan Folder
+## Completed Slice: Watched Scan Folder
 
-Build next:
+Implemented:
 
-- Scan inbox directory watcher.
+- On-demand scan folder refresh.
 - Queue files dropped into the configured scan folder.
 - Show pending scanned files before matter assignment.
 - Reuse the document import service once a matter is chosen.
-- Add duplicate/corrupt-file hardening around scanner output.
+- Duplicate queue detection by source path and file hash.
+- Unsupported file ignore.
+- Tests for queueing, duplicate detection, unsupported file ignore, and pending scan import.
+
+Acceptance criteria:
+
+- User can refresh the configured watched scan folder.
+- Supported DOC, DOCX, and PDF files appear in the scan inbox.
+- Unsupported files are ignored.
+- Re-refreshing does not queue the same scan twice.
+- User can import a pending scan into the selected matter.
+
+Verification:
+
+- `dotnet build WakiliDms.sln`
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
+- WPF app startup smoke.
+
+## Next Slice: Classification and Versioning
+
+Build next:
+
+- Editable document type and lifecycle status.
+- Status transition rules in the document domain.
+- Filed/served immutability at the document level.
+- Basic version metadata for amended/corrected documents.
 
 ## Following Slices
 
-1. Classification and versioning.
-2. OCR and search.
-3. Filing-pack builder.
-4. Receipt and court-output capture.
-5. Backup and restore.
-6. Installer and cross-machine verification.
+1. OCR and search.
+2. Filing-pack builder.
+3. Receipt and court-output capture.
+4. Backup and restore.
+5. Installer and cross-machine verification.
