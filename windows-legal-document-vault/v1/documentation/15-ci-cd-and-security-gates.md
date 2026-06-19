@@ -159,8 +159,8 @@ This is mandatory because the app stores legal documents and encrypted backups.
 
 Tool:
 
-- Gitleaks GitHub Action.
-- Uses `gitleaks/gitleaks-action@v3` with Node 24-compatible GitHub Actions runtime.
+- Gitleaks container scan.
+- Uses the pinned `ghcr.io/gitleaks/gitleaks:v8.28.0` image in an Ubuntu CI job.
 
 Purpose:
 
