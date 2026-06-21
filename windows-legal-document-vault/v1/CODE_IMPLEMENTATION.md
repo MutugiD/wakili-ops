@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 13: optional cloud-backup provider adapter.
+Slice 14: hosted admin/payment entitlement integration.
 
 Completed:
 
@@ -82,6 +82,10 @@ Completed:
 - Installed app interactive workflow script that downloads online DOCX/PDF samples and drives the WPF UI from setup through backup/restore.
 - WPF automation IDs for repeatable GUI testing.
 - Scrollable Home workflow so lower-stage actions are reachable on normal Windows viewports.
+- Optional cloud-backup provider interface.
+- Recovery-key encrypted cloud backup package creation.
+- Local filesystem cloud-backup provider for adapter testing.
+- Cloud backup entitlement, metadata redaction, download, and restore-drill tests.
 
 ## SDK Requirement
 
@@ -110,4 +114,5 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 11. Slice 10: backup and restore.
 12. Slice 11: installer and cross-machine test.
 13. Slice 12: admin install telemetry and disable flow.
-14. Slice 13: optional cloud-backup provider adapter. Current next slice.
+14. Slice 13: optional cloud-backup provider adapter.
+15. Slice 14: hosted admin/payment entitlement integration. Current next slice.

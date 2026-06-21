@@ -73,6 +73,10 @@ Current implemented behavior:
 - Installed package smoke test.
 - Installed app interactive workflow test with online DOCX/PDF samples.
 - WPF automation IDs and scrollable Home workflow for real GUI E2E validation.
+- Optional cloud-backup provider interface.
+- Recovery-key encrypted cloud backup package creation.
+- Local filesystem cloud-backup provider for adapter testing.
+- Cloud backup entitlement, metadata redaction, download, and restore-drill tests.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -451,7 +455,23 @@ Verification:
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -UseDefaultUserAppData -KeepAppOpen`
 
+## Completed Slice: Optional Cloud-Backup Provider Adapter
+
+Implemented:
+
+- Provider-neutral `ICloudBackupProvider` contract.
+- Cloud upload service that packages a local backup directory and encrypts the package with the user's recovery key before provider upload.
+- Redacted `CloudBackupSnapshotMetadata` with installation ID, snapshot ID, timestamp, encrypted byte length, encrypted package hash, and upload status only.
+- Local filesystem provider for repeatable adapter tests.
+- Cloud download/decrypt/extract flow.
+- Restore drill compatibility after cloud download.
+
+Verification:
+
+- `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj --configuration Release`
+
 ## Following Slices
 
-1. Optional cloud-backup provider adapter.
-2. Admin hosted dashboard and payment integration.
+1. Hosted admin/payment entitlement integration.
+2. User-facing Backup Center cloud controls.
+3. Production cloud provider adapter.
