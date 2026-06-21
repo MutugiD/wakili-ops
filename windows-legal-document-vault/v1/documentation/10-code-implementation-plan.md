@@ -71,6 +71,8 @@ Current implemented behavior:
 - Restore drill safety validation.
 - Product-named `WindowsLegalDocumentVault.exe`.
 - Installed package smoke test.
+- Installed app interactive workflow test with online DOCX/PDF samples.
+- WPF automation IDs and scrollable Home workflow for real GUI E2E validation.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -432,6 +434,22 @@ Verification:
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledWindowsPackage.ps1`
+
+## Completed Hardening Pass: Installed App Interactive E2E
+
+Implemented:
+
+- `Test-InstalledAppInteractiveWorkflow.ps1` for installed-app GUI automation.
+- Online DOCX and PDF download step for realistic document input.
+- Isolated settings/database path overrides through `WAKILI_DMS_SETTINGS_PATH` and `WAKILI_DMS_DATABASE_PATH`.
+- WPF automation IDs for setup, matter, import, scan inbox, search, filing pack, court output, backup, and list controls.
+- Scrollable Home workflow so lower-stage controls are reachable in a normal Windows app window.
+- Selected-matter command-state refresh for search, filing-pack export, and court-output capture.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -UseDefaultUserAppData -KeepAppOpen`
 
 ## Following Slices
 

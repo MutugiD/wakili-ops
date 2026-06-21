@@ -16,6 +16,31 @@ Use only:
 
 Never use live client material in automated or demo tests.
 
+## Online Sample Documents
+
+The installed-app interactive test downloads public sample files at runtime so the workflow proves it can handle real external documents, not only files generated inside the test harness.
+
+Current sources:
+
+- DOCX sample: `https://raw.githubusercontent.com/rounakdatta/CorrectLy/master/sample.docx`
+- PDF sample: `https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf`
+
+Run:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage
+```
+
+Expected workflow coverage:
+
+- Installed `.exe` starts from `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
+- First-run setup is completed through WPF controls.
+- The online DOCX is imported, encrypted, indexed, and searched.
+- The online PDF is copied into the watched scan folder, queued, and imported through Scan Inbox.
+- The matter is exported as a filing pack.
+- Backup snapshot and restore drill complete.
+
 ## Recommended Test Folder
 
 Use a local test folder outside the app source:

@@ -1,6 +1,7 @@
 param(
     [switch]$Visible,
-    [switch]$IncludePackageSmoke
+    [switch]$IncludePackageSmoke,
+    [switch]$IncludeInteractiveInstalledApp
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,6 +48,13 @@ try {
         powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledWindowsPackage.ps1 -FrameworkDependent
         if ($LASTEXITCODE -ne 0) {
             throw "Installed package smoke failed with exit code $LASTEXITCODE."
+        }
+    }
+
+    if ($IncludeInteractiveInstalledApp) {
+        powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage
+        if ($LASTEXITCODE -ne 0) {
+            throw "Installed app interactive workflow failed with exit code $LASTEXITCODE."
         }
     }
 

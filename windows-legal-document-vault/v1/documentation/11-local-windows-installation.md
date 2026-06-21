@@ -222,6 +222,49 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackag
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledWindowsPackage.ps1 -FrameworkDependent
 ```
 
+Do not use the framework-dependent package as the plug-and-play user package unless the target Windows machine already has the required .NET Desktop Runtime. On a clean machine it can show a Windows `.NET` install/update dialog instead of opening the vault. The default self-contained package avoids that problem.
+
+## Installed App Interactive End-to-End Test
+
+Use this after package smoke tests when you need to prove the installed app works through the actual WPF UI, not only through service-level tests:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage
+```
+
+Expected result:
+
+- The self-contained package is built and installed to `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
+- Online sample documents are downloaded to `%LOCALAPPDATA%\WakiliDmsInteractiveE2E\online-documents`.
+- The installed `WindowsLegalDocumentVault.exe` is launched.
+- First-run setup is completed through the visible WPF controls.
+- A matter is created through the UI.
+- A downloaded DOCX is imported, indexed, and searched.
+- A downloaded PDF is queued through the watched scan folder and imported through Scan Inbox.
+- A filing pack is exported.
+- A backup snapshot is created and restore drill is verified.
+
+The script uses isolated app data by default through:
+
+```text
+WAKILI_DMS_SETTINGS_PATH
+WAKILI_DMS_DATABASE_PATH
+```
+
+That keeps repeatable tests away from the normal user data folder. To intentionally drive the default installed app data path, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -UseDefaultUserAppData -KeepAppOpen
+```
+
+Use this only for a disposable local setup because it writes `%LOCALAPPDATA%\WakiliDms\settings.json` and `%LOCALAPPDATA%\WakiliDms\wakili-dms.db`.
+
+Current online sample sources used by the script:
+
+- DOCX: `https://raw.githubusercontent.com/rounakdatta/CorrectLy/master/sample.docx`
+- PDF: `https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf`
+
 ## Local App Data
 
 Development settings and local app database are stored under:

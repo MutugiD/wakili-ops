@@ -29,6 +29,7 @@ This log tracks V1 planning and implementation progress.
 | 12 | Admin install telemetry and disable flow | Complete | Installation identity, license status, sanitized check-in payload, app-side disabled/revoked gate, owner admin console, and file-backed registry enable/disable/delete commands. |
 | V1 hardening | Windows end-to-end workflow and edge cases | Complete | Added focused Windows E2E script, full matter workflow test, restore target safety fix, unsafe backup target test, destructive restore target test, and tampered backup hash test. |
 | V1 packaging | Windows EXE package/install/run | Complete | Product-named `WindowsLegalDocumentVault.exe`, package build, local install/uninstall scripts, installed executable smoke, and Windows installation guide. |
+| V1 interactive E2E | Installed app workflow with online documents | Complete | Added WPF automation IDs, scrollable Home workflow, isolated app-data test overrides, online DOCX/PDF downloads, and installed-app UI automation from setup through backup/restore drill. |
 | 13 | Optional cloud-backup provider adapter | Planned | Provider interface and encrypted snapshot upload contract. |
 
 ## Deferred From V1

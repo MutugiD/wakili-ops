@@ -257,6 +257,9 @@ public sealed class MainWindowViewModel : ObservableObject
             {
                 (ImportDocumentCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (SearchMatterCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (CaptureCourtOutputCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 _ = ReloadDocumentsForSelectionAsync();
             }
         }
