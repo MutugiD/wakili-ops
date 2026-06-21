@@ -69,6 +69,8 @@ Current implemented behavior:
 - Windows end-to-end workflow script.
 - Full matter workflow test across setup, encrypted vault, matter, scan inbox, import, classification, OCR/search, filing pack export, court-output capture, backup, restore drill, and admin registry.
 - Restore drill safety validation.
+- Product-named `WindowsLegalDocumentVault.exe`.
+- Installed package smoke test.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -414,6 +416,22 @@ Verification:
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1 -Visible -IncludePackageSmoke`
+
+## Completed Packaging Pass: Windows EXE Package, Install, and Run
+
+Implemented:
+
+- App package executable name is `WindowsLegalDocumentVault.exe`.
+- `Build-WindowsPackage.ps1` creates a self-contained Windows package and zip by default.
+- Package includes install, uninstall, run command, README, and manifest.
+- `Test-WindowsPackage.ps1` launches the packaged `.exe`.
+- `Test-InstalledWindowsPackage.ps1` installs to a local folder, launches the installed `.exe`, uninstalls, and verifies user vault data is preserved.
+- CI runs both package smoke and installed-package smoke.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledWindowsPackage.ps1`
 
 ## Following Slices
 

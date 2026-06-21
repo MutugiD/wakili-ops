@@ -3,6 +3,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <AssemblyName>WindowsLegalDocumentVault</AssemblyName>
+    <Product>Windows Legal Document Vault</Product>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\WakiliDms.Core\WakiliDms.Core.csproj" />

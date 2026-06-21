@@ -19,7 +19,7 @@ if (-not $resultLine) {
 }
 
 $result = $resultLine | ConvertFrom-Json
-$exePath = Join-Path $result.PackageDirectory "WakiliDms.App.exe"
+$exePath = Join-Path $result.PackageDirectory "WindowsLegalDocumentVault.exe"
 if (-not (Test-Path $exePath)) {
     throw "Packaged executable not found at $exePath"
 }

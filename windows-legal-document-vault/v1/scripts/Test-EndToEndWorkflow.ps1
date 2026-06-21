@@ -43,6 +43,11 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Package smoke failed with exit code $LASTEXITCODE."
         }
+
+        powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledWindowsPackage.ps1 -FrameworkDependent
+        if ($LASTEXITCODE -ne 0) {
+            throw "Installed package smoke failed with exit code $LASTEXITCODE."
+        }
     }
 
     "PASS Windows Legal Document Vault end-to-end workflow."

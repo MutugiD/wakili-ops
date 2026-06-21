@@ -111,6 +111,7 @@ V1 install verification:
 - Launch app without admin-only runtime assumptions.
 - Build self-contained `win-x64` package.
 - Run packaged executable smoke test.
+- Run installed executable smoke test.
 - Install into `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
 - Uninstall while preserving user vault data by default.
 - Create local vault.
@@ -126,4 +127,5 @@ The MVP is installation-ready when:
 - Manual acceptance flow passes on developer machine.
 - Cross-machine restore passes.
 - Installer smoke test passes.
+- Installed executable smoke test passes.
 - Documentation matches implemented behavior.
