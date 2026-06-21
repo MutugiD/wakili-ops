@@ -27,6 +27,7 @@ This log tracks V1 planning and implementation progress.
 | 10 | Backup and restore | Complete | Encrypted vault-object snapshot, recovery-key encrypted database backup, checksum manifest, restore-drill hash validation, and backup UI command. |
 | 11 | Installer and cross-machine test | Complete | Local-user Windows package, install/uninstall scripts, packaged executable smoke, CI package smoke, and installation docs. Cross-machine/manual restore remains part of release acceptance. |
 | 12 | Admin install telemetry and disable flow | Complete | Installation identity, license status, sanitized check-in payload, app-side disabled/revoked gate, owner admin console, and file-backed registry enable/disable/delete commands. |
+| V1 hardening | Windows end-to-end workflow and edge cases | Complete | Added focused Windows E2E script, full matter workflow test, restore target safety fix, unsafe backup target test, destructive restore target test, and tampered backup hash test. |
 | 13 | Optional cloud-backup provider adapter | Planned | Provider interface and encrypted snapshot upload contract. |
 
 ## Deferred From V1

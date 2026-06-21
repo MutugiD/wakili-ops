@@ -94,6 +94,9 @@ jobs:
       - name: Run functional and security test harness
         run: dotnet run --configuration Release --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj --no-build
 
+      - name: Run Windows end-to-end workflow
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/Test-EndToEndWorkflow.ps1
+
       - name: Dependency vulnerability scan
         run: dotnet list WakiliDms.sln package --include-transitive --vulnerable
 

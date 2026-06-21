@@ -123,6 +123,13 @@ public sealed class RestoreDrillService
             return Result.Fail("Recovery key is required for restore drill verification.");
         }
 
+        var backupDirectory = Path.GetFullPath(request.BackupDirectory);
+        var restoreTargetPath = Path.GetFullPath(request.RestoreTargetPath);
+        if (PathEqualsOrIsInside(backupDirectory, restoreTargetPath))
+        {
+            return Result.Fail("Restore target cannot be the backup directory or a parent of the backup directory.");
+        }
+
         return Result.Ok();
     }
 

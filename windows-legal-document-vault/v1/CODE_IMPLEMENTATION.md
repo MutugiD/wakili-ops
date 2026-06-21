@@ -73,6 +73,10 @@ Completed:
 - File-backed admin installation registry.
 - Admin list/check-in/enable/disable/delete commands.
 - Admin registry tests proving enable/disable/delete and no vault-data deletion.
+- Windows end-to-end workflow script.
+- End-to-end matter workflow test covering setup, vault, matter, scan inbox, import, classification, OCR/search, filing pack export, receipt capture, backup, restore drill, and admin registry.
+- Backup/restore edge tests for unsafe backup target, destructive restore target, and tampered backup hash rejection.
+- Restore drill safety fix preventing restore targets that equal or contain the backup directory.
 
 ## SDK Requirement
 

@@ -66,6 +66,9 @@ Current implemented behavior:
 - Owner admin console scaffold.
 - File-backed admin installation registry.
 - Admin enable/disable/delete controls.
+- Windows end-to-end workflow script.
+- Full matter workflow test across setup, encrypted vault, matter, scan inbox, import, classification, OCR/search, filing pack export, court-output capture, backup, restore drill, and admin registry.
+- Restore drill safety validation.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -388,6 +391,29 @@ Verification:
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj`
 - `dotnet run --project src/WakiliDms.Admin/WakiliDms.Admin.csproj -- list --registry <path>`
 - `scripts\Start-AppSmoke.ps1`
+
+## Completed Hardening Pass: Windows End-to-End Workflow
+
+Implemented:
+
+- `scripts\Test-EndToEndWorkflow.ps1`.
+- Test filter support in the console test harness.
+- Full end-to-end matter workflow test.
+- CI step for the Windows end-to-end workflow.
+- Restore drill guard against restore targets equal to, or above, the backup directory.
+- Edge tests for backup target inside vault, destructive restore targets, and tampered backup files.
+
+Acceptance criteria:
+
+- One command runs the focused E2E flow on Windows.
+- The flow covers setup, vault, matter, scan inbox, document import, classification, search, filing pack export, receipt capture, backup, restore drill, and admin registry.
+- Restore drill cannot delete the backup it is validating.
+- Tampered backup files fail restore validation by hash.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1 -Visible -IncludePackageSmoke`
 
 ## Following Slices
 

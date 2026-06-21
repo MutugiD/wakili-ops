@@ -37,11 +37,15 @@ var tests = new (string Name, Action Test)[]
     ("DOCX text extractor returns searchable body text", DocxTextExtractorReturnsSearchableBodyText),
     ("Document indexing searches encrypted DOCX by matter", DocumentIndexingSearchesEncryptedDocxByMatter),
     ("Text-like PDF extraction can be indexed and searched", TextLikePdfExtractionCanBeIndexedAndSearched),
+    ("Windows end-to-end matter workflow completes", WindowsEndToEndMatterWorkflowCompletes),
     ("Filing pack export writes decrypted copies and manifest", FilingPackExportWritesDecryptedCopiesAndManifest),
     ("Court output capture stores filing receipt under matter", CourtOutputCaptureStoresFilingReceiptUnderMatter),
     ("Court output capture rejects non-output document type", CourtOutputCaptureRejectsNonOutputDocumentType),
     ("Backup snapshot copies encrypted vault and database with manifest", BackupSnapshotCopiesEncryptedVaultAndDatabaseWithManifest),
     ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles),
+    ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
+    ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
+    ("Restore drill rejects tampered backup hashes", RestoreDrillRejectsTamperedBackupHashes),
     ("Installation identity is generated and preserved", InstallationIdentityIsGeneratedAndPreserved),
     ("Disabled installation blocks licensed feature access without deleting data", DisabledInstallationBlocksLicensedFeatureAccessWithoutDeletingData),
     ("Installation check-in payload excludes document and matter details", InstallationCheckInPayloadExcludesDocumentAndMatterDetails),
@@ -49,9 +53,19 @@ var tests = new (string Name, Action Test)[]
     ("Admin registry delete does not touch vault data", AdminRegistryDeleteDoesNotTouchVaultData)
 };
 
+var filter = ReadFilter(args);
+var selectedTests = string.IsNullOrWhiteSpace(filter)
+    ? tests
+    : tests.Where(test => test.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray();
+if (selectedTests.Length == 0)
+{
+    Console.WriteLine($"FAIL No tests matched filter: {filter}");
+    Environment.Exit(1);
+}
+
 var failures = 0;
 
-foreach (var (name, test) in tests)
+foreach (var (name, test) in selectedTests)
 {
     try
     {
@@ -68,6 +82,20 @@ foreach (var (name, test) in tests)
 if (failures > 0)
 {
     Environment.Exit(1);
+}
+
+static string? ReadFilter(string[] args)
+{
+    for (var index = 0; index < args.Length; index++)
+    {
+        if (string.Equals(args[index], "--filter", StringComparison.OrdinalIgnoreCase)
+            && index + 1 < args.Length)
+        {
+            return args[index + 1];
+        }
+    }
+
+    return null;
 }
 
 static void SetupValidationAcceptsCompleteSettings()
@@ -763,6 +791,161 @@ static void TextLikePdfExtractionCanBeIndexedAndSearched()
     }
 }
 
+static void WindowsEndToEndMatterWorkflowCompletes()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.E2E", Guid.NewGuid().ToString("N"));
+    var settingsPath = Path.Combine(tempRoot, "settings.json");
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var scanFolderPath = Path.Combine(tempRoot, "scan-inbox");
+    var backupTargetPath = Path.Combine(tempRoot, "backups");
+    var exportRootPath = Path.Combine(tempRoot, "filing-packs");
+    var restoreTargetPath = Path.Combine(tempRoot, "restore-output");
+    var adminRegistryPath = Path.Combine(tempRoot, "admin", "installations.json");
+    var affidavitPath = Path.Combine(tempRoot, "supporting-affidavit.pdf");
+    var receiptPath = Path.Combine(tempRoot, "filing-receipt.pdf");
+    var recoveryKey = "e2e recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        Directory.CreateDirectory(scanFolderPath);
+        File.WriteAllText(
+            affidavitPath,
+            "%PDF-1.7\nBT (Supporting affidavit mentions Kileleshwa rent arrears and urgent conservatory orders) Tj ET\n%%EOF");
+        File.WriteAllText(
+            receiptPath,
+            "%PDF-1.7\nBT (Filing receipt number WLVD-E2E-001) Tj ET\n%%EOF");
+        CreateMinimalDocx(
+            Path.Combine(scanFolderPath, "draft-submissions.docx"),
+            "Draft submissions mention Nairobi Block 42 and Kileleshwa rent arrears.");
+        File.WriteAllText(Path.Combine(scanFolderPath, "desktop.ini"), "ignored");
+
+        var settingsStore = new JsonSettingsStore(settingsPath);
+        var installationControl = new InstallationControlService();
+        var settings = installationControl.EnsureInstallationIdentity(ValidSettings() with
+        {
+            FirmName = "End To End Advocates LLP",
+            PrimaryUser = "Test Advocate",
+            LicenseKey = "WLVD-E2E-001",
+            DeviceNickname = "Windows E2E PC",
+            VaultPath = vaultPath,
+            ScanFolderPath = scanFolderPath,
+            BackupTargetPath = backupTargetPath,
+            RecoveryKeyConfirmed = true,
+            SetupCompletedAt = DateTimeOffset.UtcNow
+        }, DateTimeOffset.UtcNow);
+        Assert(SetupValidator.Validate(settings).Succeeded, "E2E settings should validate.");
+        settingsStore.SaveAsync(settings, CancellationToken.None).GetAwaiter().GetResult();
+        var loadedSettings = settingsStore.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert(loadedSettings is not null, "E2E settings should reload.");
+        Assert(loadedSettings!.InstallationId == settings.InstallationId, "E2E installation ID should persist.");
+
+        var matterRepository = new SqliteMatterRepository(dbPath);
+        var documentRepository = new SqliteDocumentRepository(dbPath);
+        var documentVersionRepository = new SqliteDocumentVersionRepository(dbPath);
+        var scanInboxRepository = new SqliteScanInboxRepository(dbPath);
+        var searchRepository = new SqliteDocumentSearchRepository(dbPath);
+        var vault = new EncryptedVaultService();
+        matterRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        documentVersionRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        scanInboxRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        searchRepository.InitializeAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert(vault.CreateVaultAsync(vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult().Succeeded, "E2E vault should be created.");
+
+        var matter = Matter.Create("End To End Matter", courtCaseNumber: "E2E-001", clientName: "Synthetic Client");
+        matterRepository.AddAsync(matter, CancellationToken.None).GetAwaiter().GetResult();
+
+        var scanService = new ScanFolderService(scanInboxRepository);
+        var scan = scanService.ScanOnceAsync(scanFolderPath, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(scan.Succeeded && scan.Value is not null, scan.Error ?? "E2E scan failed.");
+        Assert(scan.Value!.QueuedCount == 1, "E2E scan should queue one DOCX.");
+        Assert(scan.Value.IgnoredCount == 1, "E2E scan should ignore unsupported file.");
+        var duplicateScan = scanService.ScanOnceAsync(scanFolderPath, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(duplicateScan.Value!.DuplicateCount == 1, "E2E second scan should detect duplicate.");
+
+        var importService = new DocumentImportService(matterRepository, documentRepository, documentVersionRepository, vault);
+        var pendingScan = scanInboxRepository.ListPendingAsync(CancellationToken.None).GetAwaiter().GetResult().Single();
+        var scanImport = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, pendingScan.SourcePath, vaultPath, recoveryKey, DocumentType.Submission),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(scanImport.Succeeded && scanImport.Value is not null, scanImport.Error ?? "E2E scan import failed.");
+        scanInboxRepository.MarkImportedAsync(pendingScan.Id, scanImport.Value!.Id, DateTimeOffset.UtcNow, CancellationToken.None).GetAwaiter().GetResult();
+
+        var affidavitImport = importService.ImportAsync(
+            new DocumentImportRequest(matter.Id, affidavitPath, vaultPath, recoveryKey, DocumentType.Affidavit),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(affidavitImport.Succeeded && affidavitImport.Value is not null, affidavitImport.Error ?? "E2E affidavit import failed.");
+
+        var updatedAffidavit = affidavitImport.Value!.WithClassification(DocumentType.Affidavit, DocumentStatus.Reviewed);
+        documentRepository.UpdateClassificationAsync(updatedAffidavit, CancellationToken.None).GetAwaiter().GetResult();
+        var reloadedAffidavit = documentRepository.GetAsync(updatedAffidavit.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(reloadedAffidavit!.Status == DocumentStatus.Reviewed, "E2E classification should persist.");
+
+        var indexingService = new DocumentIndexingService(documentRepository, vault, new LocalDocumentTextExtractor(), searchRepository);
+        var indexedDocx = indexingService.IndexDocumentAsync(scanImport.Value.Id, vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+        var indexedPdf = indexingService.IndexDocumentAsync(affidavitImport.Value.Id, vaultPath, recoveryKey, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(indexedDocx.Succeeded && indexedDocx.Value > 0, indexedDocx.Error ?? "E2E DOCX indexing failed.");
+        Assert(indexedPdf.Succeeded && indexedPdf.Value > 0, indexedPdf.Error ?? "E2E PDF indexing failed.");
+        var searchResults = searchRepository.SearchAsync(matter.Id, "Kileleshwa arrears", CancellationToken.None).GetAwaiter().GetResult();
+        Assert(searchResults.Count >= 1, "E2E search should find indexed matter text.");
+
+        var versions = documentVersionRepository.ListByDocumentAsync(scanImport.Value.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(versions.Count == 1, "E2E imported scan should have initial version metadata.");
+
+        var exportService = new FilingPackExportService(matterRepository, documentRepository, vault);
+        var filingPack = exportService.ExportAsync(
+            new FilingPackExportRequest(
+                matter.Id,
+                [scanImport.Value.Id, affidavitImport.Value.Id],
+                vaultPath,
+                recoveryKey,
+                exportRootPath),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(filingPack.Succeeded && filingPack.Value is not null, filingPack.Error ?? "E2E filing pack export failed.");
+        Assert(File.Exists(filingPack.Value!.ManifestPath), "E2E filing pack manifest should exist.");
+        Assert(Directory.GetFiles(filingPack.Value.ExportDirectory).Length >= 4, "E2E filing pack should contain documents, manifest, and checklist.");
+
+        var courtOutputCapture = new CourtOutputCaptureService(importService);
+        var receiptCapture = courtOutputCapture.CaptureAsync(
+            new CourtOutputCaptureRequest(matter.Id, receiptPath, vaultPath, recoveryKey, DocumentType.FilingReceipt),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(receiptCapture.Succeeded && receiptCapture.Value is not null, receiptCapture.Error ?? "E2E receipt capture failed.");
+
+        var matterDocuments = documentRepository.ListByMatterAsync(matter.Id, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(matterDocuments.Count == 3, "E2E matter should contain imported DOCX, affidavit PDF, and filing receipt.");
+
+        var backup = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTargetPath, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(backup.Succeeded && backup.Value is not null, backup.Error ?? "E2E backup failed.");
+        var restore = new RestoreDrillService().RunAsync(
+            new RestoreDrillRequest(backup.Value!.BackupDirectory, restoreTargetPath, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(restore.Succeeded && restore.Value is not null, restore.Error ?? "E2E restore drill failed.");
+        Assert(restore.Value!.VerifiedFileCount == backup.Value.BackedUpFileCount, "E2E restore should verify every backup file.");
+
+        var payload = installationControl.CreateCheckInPayload(
+            settings,
+            "1.0.0-e2e",
+            new BackupHealthSummary(backup.Value.CreatedAt, null, "LocalBackupHealthy"),
+            DateTimeOffset.UtcNow);
+        var adminRegistry = new AdminInstallationRegistry(adminRegistryPath);
+        var registered = adminRegistry.UpsertFromCheckInAsync(payload, "E2E install", CancellationToken.None).GetAwaiter().GetResult();
+        Assert(registered.Succeeded && registered.Value is not null, registered.Error ?? "E2E admin registry failed.");
+        var disabled = adminRegistry.DisableAsync(settings.InstallationId, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(disabled.Succeeded && disabled.Value!.LicenseStatus == LicenseStatus.Disabled, disabled.Error ?? "E2E disable failed.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
 static void FilingPackExportWritesDecryptedCopiesAndManifest()
 {
     var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
@@ -971,6 +1154,116 @@ static void RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles()
         Assert(File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db.backup")), "Restore drill should copy encrypted database artifact.");
         Assert(!File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db")), "Restore drill should not leave a plain database file.");
         Assert(Directory.GetFiles(Path.Combine(restoreTarget, "vault", "objects"), "*.json").Length == 1, "Restore drill should copy vault object files.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void BackupSnapshotRejectsTargetInsideVault()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var sourcePath = Path.Combine(tempRoot, "ruling.pdf");
+    var recoveryKey = "backup target validation key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nBackup target validation\n%%EOF");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+
+        var result = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, Path.Combine(vaultPath, "backups"), recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(!result.Succeeded, "Backup target inside vault should be rejected.");
+        Assert(result.Error!.Contains("inside the encrypted vault", StringComparison.OrdinalIgnoreCase), "Backup target rejection should explain the vault boundary.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var sourcePath = Path.Combine(tempRoot, "ruling.pdf");
+    var recoveryKey = "restore target validation key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nRestore target validation\n%%EOF");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var backupDirectory = snapshot.Value!.BackupDirectory;
+        var sameDirectory = new RestoreDrillService().RunAsync(
+            new RestoreDrillRequest(backupDirectory, backupDirectory, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        var parentDirectory = new RestoreDrillService().RunAsync(
+            new RestoreDrillRequest(backupDirectory, tempRoot, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(!sameDirectory.Succeeded, "Restore drill should reject target equal to backup directory.");
+        Assert(!parentDirectory.Succeeded, "Restore drill should reject target that contains backup directory.");
+        Assert(File.Exists(snapshot.Value.ManifestPath), "Rejected restore target must not delete backup manifest.");
+        Assert(Directory.Exists(backupDirectory), "Rejected restore target must not delete backup directory.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void RestoreDrillRejectsTamperedBackupHashes()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var restoreTarget = Path.Combine(tempRoot, "restore");
+    var sourcePath = Path.Combine(tempRoot, "ruling.pdf");
+    var recoveryKey = "restore tamper validation key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nRestore tamper validation\n%%EOF");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var backedUpVaultObject = Directory.GetFiles(Path.Combine(snapshot.Value!.BackupDirectory, "vault", "objects"), "*.json").Single();
+        File.AppendAllText(backedUpVaultObject, "tampered");
+
+        var restore = new RestoreDrillService().RunAsync(
+            new RestoreDrillRequest(snapshot.Value.BackupDirectory, restoreTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(!restore.Succeeded, "Restore drill should reject tampered backup files.");
+        Assert(restore.Error!.Contains("hash mismatch", StringComparison.OrdinalIgnoreCase), "Restore drill should report hash mismatch.");
     }
     finally
     {

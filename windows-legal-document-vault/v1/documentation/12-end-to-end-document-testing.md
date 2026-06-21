@@ -118,6 +118,52 @@ Expected behavior:
 
 ## Core Test Scenarios
 
+## Automated End-to-End Workflow
+
+Run the current automated Windows workflow from the V1 app root:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1
+```
+
+For local release confidence, run with a visible WPF launch and package smoke:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1 -Visible -IncludePackageSmoke
+```
+
+Current automated E2E coverage:
+
+- First-run style settings creation.
+- Installation ID persistence.
+- Encrypted vault creation.
+- SQLite matter creation.
+- Watched scan folder queueing and duplicate detection.
+- DOCX scan import into a matter.
+- PDF document import into the same matter.
+- Classification update.
+- Initial version metadata.
+- DOCX and text-like PDF indexing.
+- Matter-scoped search.
+- Filing-pack export.
+- Receipt/court-output capture.
+- Encrypted backup snapshot.
+- Restore drill.
+- Admin registry check-in and disable operation.
+
+Current automated edge coverage:
+
+- Unsupported and empty files are ignored/rejected.
+- Unsupported import file types are rejected.
+- Wrong vault recovery key fails.
+- Filed/served classifications are immutable.
+- Court-output capture rejects non-output document types.
+- Backup target inside the vault is rejected.
+- Restore targets that could delete the backup are rejected.
+- Tampered backup artifacts fail restore hash validation.
+- Admin registry delete does not delete local vault data.
+
 ### Scenario 1: New Matter With Word Draft and PDF Filing Copy
 
 1. Create matter.
@@ -266,4 +312,3 @@ Before a release is considered usable:
 - Manual import tests pass for DOCX, PDF, scanned PDF, JPG, PNG, duplicate file, corrupt PDF, password-protected PDF, and unsupported file.
 - No test uploads raw document contents to cloud or admin dashboard.
 - Local vault remains usable offline.
-
