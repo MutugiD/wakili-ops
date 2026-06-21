@@ -22,6 +22,7 @@ var tests = new (string Name, Action Test)[]
     ("Matter creation trims required name", MatterCreationTrimsName),
     ("Filed and served document statuses are immutable", FiledAndServedStatusesAreImmutable),
     ("JSON settings store saves and loads setup state", JsonSettingsStoreSavesAndLoadsSetupState),
+    ("Default app paths honor test environment overrides", DefaultAppPathsHonorTestEnvironmentOverrides),
     ("Encrypted vault creates manifest and stores unreadable object bytes", EncryptedVaultStoresUnreadableObjectBytes),
     ("Encrypted vault rejects wrong recovery key", EncryptedVaultRejectsWrongRecoveryKey),
     ("SQLite matter repository persists and lists matters", SqliteMatterRepositoryPersistsAndListsMatters),
@@ -150,6 +151,31 @@ static void JsonSettingsStoreSavesAndLoadsSetupState()
         {
             Directory.Delete(tempRoot, recursive: true);
         }
+    }
+}
+
+static void DefaultAppPathsHonorTestEnvironmentOverrides()
+{
+    const string settingsOverrideName = "WAKILI_DMS_SETTINGS_PATH";
+    const string databaseOverrideName = "WAKILI_DMS_DATABASE_PATH";
+    var previousSettingsOverride = Environment.GetEnvironmentVariable(settingsOverrideName);
+    var previousDatabaseOverride = Environment.GetEnvironmentVariable(databaseOverrideName);
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var settingsPath = Path.Combine(tempRoot, "settings.json");
+    var databasePath = Path.Combine(tempRoot, "wakili-dms.db");
+
+    try
+    {
+        Environment.SetEnvironmentVariable(settingsOverrideName, settingsPath);
+        Environment.SetEnvironmentVariable(databaseOverrideName, databasePath);
+
+        Assert(DefaultAppPaths.SettingsPath() == settingsPath, "Settings path override should be used.");
+        Assert(DefaultAppPaths.DatabasePath() == databasePath, "Database path override should be used.");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable(settingsOverrideName, previousSettingsOverride);
+        Environment.SetEnvironmentVariable(databaseOverrideName, previousDatabaseOverride);
     }
 }
 

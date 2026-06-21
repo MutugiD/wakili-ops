@@ -69,6 +69,25 @@ Expected coverage:
 - Starts the WPF app on Windows.
 - Optionally verifies the packaged executable.
 
+Run the installed app interactive workflow when validating the actual Windows package:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage
+```
+
+Or include it from the broader E2E runner:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1 -Visible -IncludePackageSmoke -IncludeInteractiveInstalledApp
+```
+
+Expected coverage:
+
+- Downloads public online DOCX/PDF samples.
+- Installs the self-contained package.
+- Completes first-run setup through WPF controls.
+- Creates a matter, imports and indexes a DOCX, searches it, imports a PDF through Scan Inbox, exports a filing pack, and runs backup plus restore drill.
+
 ## Manual Acceptance Tests
 
 Manual tests must cover:
@@ -112,6 +131,7 @@ V1 install verification:
 - Build self-contained `win-x64` package.
 - Run packaged executable smoke test.
 - Run installed executable smoke test.
+- Run installed app interactive workflow test with online sample documents.
 - Install into `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
 - Uninstall while preserving user vault data by default.
 - Create local vault.
@@ -128,4 +148,5 @@ The MVP is installation-ready when:
 - Cross-machine restore passes.
 - Installer smoke test passes.
 - Installed executable smoke test passes.
+- Installed app interactive workflow test passes.
 - Documentation matches implemented behavior.

@@ -79,6 +79,9 @@ Completed:
 - Restore drill safety fix preventing restore targets that equal or contain the backup directory.
 - Product-named `WindowsLegalDocumentVault.exe`.
 - Installed package smoke script that installs, launches, uninstalls, and verifies vault data preservation.
+- Installed app interactive workflow script that downloads online DOCX/PDF samples and drives the WPF UI from setup through backup/restore.
+- WPF automation IDs for repeatable GUI testing.
+- Scrollable Home workflow so lower-stage actions are reachable on normal Windows viewports.
 
 ## SDK Requirement
 

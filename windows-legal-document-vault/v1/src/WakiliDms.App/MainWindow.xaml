@@ -40,7 +40,8 @@
                     BorderThickness="1"
                     Padding="20"
                     CornerRadius="6">
-                <StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
                     <TextBlock Text="First-run setup"
                                FontSize="18"
                                FontWeight="SemiBold"
@@ -51,34 +52,44 @@
                                Margin="0,10,0,0" />
 
                     <TextBlock Text="Firm name" Margin="0,18,0,4" />
-                    <TextBox Text="{Binding FirmName, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupFirmName"
+                             Text="{Binding FirmName, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Primary user" Margin="0,12,0,4" />
-                    <TextBox Text="{Binding PrimaryUser, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupPrimaryUser"
+                             Text="{Binding PrimaryUser, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Device nickname" Margin="0,12,0,4" />
-                    <TextBox Text="{Binding DeviceNickname, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupDeviceNickname"
+                             Text="{Binding DeviceNickname, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="License key" Margin="0,12,0,4" />
-                    <TextBox Text="{Binding LicenseKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupLicenseKey"
+                             Text="{Binding LicenseKey, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Vault path" Margin="0,12,0,4" />
-                    <TextBox Text="{Binding VaultPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupVaultPath"
+                             Text="{Binding VaultPath, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Watched scan folder" Margin="0,12,0,4" />
-                    <TextBox Text="{Binding ScanFolderPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupScanFolderPath"
+                             Text="{Binding ScanFolderPath, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Backup target folder" Margin="0,12,0,4" />
-                    <TextBox Text="{Binding BackupTargetPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupBackupTargetPath"
+                             Text="{Binding BackupTargetPath, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Recovery key" Margin="0,12,0,4" />
-                    <TextBox Text="{Binding SetupRecoveryKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SetupRecoveryKey"
+                             Text="{Binding SetupRecoveryKey, UpdateSourceTrigger=PropertyChanged}" />
 
                     <CheckBox Content="I have saved the recovery key details for this vault."
+                              AutomationProperties.AutomationId="SetupRecoveryKeyConfirmed"
                               IsChecked="{Binding RecoveryKeyConfirmed}"
                               Margin="0,16,0,0" />
 
                     <Button Content="Complete setup"
+                            AutomationProperties.AutomationId="CompleteSetupButton"
                             Command="{Binding CompleteSetupCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -88,7 +99,8 @@
                                TextWrapping="Wrap"
                                Foreground="#B45309"
                                Margin="0,14,0,0" />
-                </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
 
             <Border Grid.Column="1"
@@ -132,6 +144,7 @@
                     BorderThickness="1"
                     Padding="20"
                     CornerRadius="6">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <TextBlock Text="Home"
                                FontSize="18"
@@ -159,15 +172,19 @@
 
                     <TextBlock Text="Create matter" FontSize="16" FontWeight="SemiBold" Margin="0,24,0,8" />
                     <TextBlock Text="Matter name" Margin="0,0,0,4" />
-                    <TextBox Text="{Binding NewMatterName, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="NewMatterName"
+                             Text="{Binding NewMatterName, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Client name" Margin="0,10,0,4" />
-                    <TextBox Text="{Binding NewMatterClientName, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="NewMatterClientName"
+                             Text="{Binding NewMatterClientName, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Court case number" Margin="0,10,0,4" />
-                    <TextBox Text="{Binding NewMatterCourtCaseNumber, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="NewMatterCourtCaseNumber"
+                             Text="{Binding NewMatterCourtCaseNumber, UpdateSourceTrigger=PropertyChanged}" />
 
                     <Button Content="Create matter"
+                            AutomationProperties.AutomationId="CreateMatterButton"
                             Command="{Binding CreateMatterCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -175,12 +192,15 @@
 
                     <TextBlock Text="Import document" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
                     <TextBlock Text="Source file path" Margin="0,0,0,4" />
-                    <TextBox Text="{Binding ImportSourceFilePath, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="ImportSourceFilePath"
+                             Text="{Binding ImportSourceFilePath, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Recovery key" Margin="0,10,0,4" />
-                    <TextBox Text="{Binding ImportRecoveryKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="ImportRecoveryKey"
+                             Text="{Binding ImportRecoveryKey, UpdateSourceTrigger=PropertyChanged}" />
 
                     <Button Content="Import selected matter document"
+                            AutomationProperties.AutomationId="ImportMatterDocumentButton"
                             Command="{Binding ImportDocumentCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -188,12 +208,14 @@
 
                     <TextBlock Text="Scan inbox" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
                     <Button Content="Refresh watched scan folder"
+                            AutomationProperties.AutomationId="RefreshScanFolderButton"
                             Command="{Binding RefreshScanFolderCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
                             Margin="0,0,0,0" />
 
                     <Button Content="Import selected scan"
+                            AutomationProperties.AutomationId="ImportSelectedScanButton"
                             Command="{Binding ImportSelectedScanCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -201,14 +223,17 @@
 
                     <TextBlock Text="Classify selected document" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
                     <TextBlock Text="Document type" Margin="0,0,0,4" />
-                    <ComboBox ItemsSource="{Binding DocumentTypeOptions}"
+                    <ComboBox AutomationProperties.AutomationId="DocumentTypeCombo"
+                              ItemsSource="{Binding DocumentTypeOptions}"
                               SelectedItem="{Binding SelectedDocumentType}" />
 
                     <TextBlock Text="Document status" Margin="0,10,0,4" />
-                    <ComboBox ItemsSource="{Binding DocumentStatusOptions}"
+                    <ComboBox AutomationProperties.AutomationId="DocumentStatusCombo"
+                              ItemsSource="{Binding DocumentStatusOptions}"
                               SelectedItem="{Binding SelectedDocumentStatus}" />
 
                     <Button Content="Update classification"
+                            AutomationProperties.AutomationId="UpdateClassificationButton"
                             Command="{Binding UpdateDocumentClassificationCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -216,13 +241,16 @@
 
                     <TextBlock Text="OCR and search" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
                     <Button Content="Index selected document"
+                            AutomationProperties.AutomationId="IndexSelectedDocumentButton"
                             Command="{Binding IndexSelectedDocumentCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8" />
 
                     <TextBlock Text="Search this matter" Margin="0,14,0,4" />
-                    <TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="SearchQuery"
+                             Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}" />
                     <Button Content="Search"
+                            AutomationProperties.AutomationId="SearchMatterButton"
                             Command="{Binding SearchMatterCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -230,8 +258,10 @@
 
                     <TextBlock Text="Filing pack" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
                     <TextBlock Text="Export root folder" Margin="0,0,0,4" />
-                    <TextBox Text="{Binding FilingPackExportRootPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="FilingPackExportRootPath"
+                             Text="{Binding FilingPackExportRootPath, UpdateSourceTrigger=PropertyChanged}" />
                     <Button Content="Export matter filing pack"
+                            AutomationProperties.AutomationId="ExportFilingPackButton"
                             Command="{Binding ExportFilingPackCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -239,13 +269,16 @@
 
                     <TextBlock Text="Capture receipt or court output" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
                     <TextBlock Text="Source file path" Margin="0,0,0,4" />
-                    <TextBox Text="{Binding CourtOutputSourceFilePath, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="CourtOutputSourceFilePath"
+                             Text="{Binding CourtOutputSourceFilePath, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Output type" Margin="0,10,0,4" />
-                    <ComboBox ItemsSource="{Binding CourtOutputTypeOptions}"
+                    <ComboBox AutomationProperties.AutomationId="CourtOutputTypeCombo"
+                              ItemsSource="{Binding CourtOutputTypeOptions}"
                               SelectedItem="{Binding SelectedCourtOutputType}" />
 
                     <Button Content="Capture to selected matter"
+                            AutomationProperties.AutomationId="CaptureCourtOutputButton"
                             Command="{Binding CaptureCourtOutputCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8"
@@ -253,12 +286,15 @@
 
                     <TextBlock Text="Backup and restore drill" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
                     <TextBlock Text="Recovery key" Margin="0,0,0,4" />
-                    <TextBox Text="{Binding BackupRecoveryKey, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox AutomationProperties.AutomationId="BackupRecoveryKey"
+                             Text="{Binding BackupRecoveryKey, UpdateSourceTrigger=PropertyChanged}" />
                     <Button Content="Run backup and restore drill"
+                            AutomationProperties.AutomationId="RunBackupButton"
                             Command="{Binding RunBackupCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8" />
                 </StackPanel>
+                </ScrollViewer>
             </Border>
 
             <Border Grid.Column="1"
@@ -284,7 +320,8 @@
                                    FontWeight="SemiBold"
                                    Foreground="#111827"
                                    Margin="0,20,0,8" />
-                        <ListBox ItemsSource="{Binding Matters}"
+                        <ListBox AutomationProperties.AutomationId="MattersList"
+                                 ItemsSource="{Binding Matters}"
                                  SelectedItem="{Binding SelectedMatter}"
                                  BorderThickness="0"
                                  MaxHeight="180">
@@ -311,7 +348,8 @@
                                    FontWeight="SemiBold"
                                    Foreground="#111827"
                                    Margin="0,20,0,8" />
-                        <ListBox ItemsSource="{Binding ScanInbox}"
+                        <ListBox AutomationProperties.AutomationId="ScanInboxList"
+                                 ItemsSource="{Binding ScanInbox}"
                                  SelectedItem="{Binding SelectedScan}"
                                  BorderThickness="0"
                                  MaxHeight="180">
@@ -337,7 +375,8 @@
                                    FontWeight="SemiBold"
                                    Foreground="#111827"
                                    Margin="0,20,0,8" />
-                        <ListBox ItemsSource="{Binding Documents}"
+                        <ListBox AutomationProperties.AutomationId="DocumentsList"
+                                 ItemsSource="{Binding Documents}"
                                  SelectedItem="{Binding SelectedDocument}"
                                  BorderThickness="0"
                                  MaxHeight="220">
