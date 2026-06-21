@@ -7,6 +7,7 @@ V1 testing uses four layers:
 - Unit tests.
 - Integration tests.
 - Filesystem/security tests.
+- Automated end-to-end Windows workflow tests.
 - Manual Windows acceptance tests.
 
 ## Unit Tests
@@ -30,6 +31,7 @@ Integration tests cover:
 - File import into vault.
 - Search indexing.
 - Backup manifest creation.
+- Full matter workflow across setup, vault, scan inbox, import, search, export, court-output capture, backup, restore drill, and admin registry.
 
 Tests should use temporary folders and synthetic documents.
 
@@ -42,6 +44,30 @@ Tests must prove:
 - File hashes remain stable.
 - Wrong recovery key fails.
 - Restore does not overwrite live vault without explicit command.
+- Restore drill rejects destructive target paths.
+- Restore drill rejects tampered backup artifacts.
+
+## Automated Windows End-to-End Test
+
+Run the focused workflow:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1
+```
+
+Run it with a visible app launch and packaged executable smoke:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-EndToEndWorkflow.ps1 -Visible -IncludePackageSmoke
+```
+
+Expected coverage:
+
+- Builds the solution.
+- Runs the filtered end-to-end test.
+- Starts the WPF app on Windows.
+- Optionally verifies the packaged executable.
 
 ## Manual Acceptance Tests
 
@@ -96,6 +122,7 @@ V1 install verification:
 The MVP is installation-ready when:
 
 - Automated tests pass.
+- Automated end-to-end workflow passes.
 - Manual acceptance flow passes on developer machine.
 - Cross-machine restore passes.
 - Installer smoke test passes.
