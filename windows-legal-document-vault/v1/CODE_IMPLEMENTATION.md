@@ -77,6 +77,8 @@ Completed:
 - End-to-end matter workflow test covering setup, vault, matter, scan inbox, import, classification, OCR/search, filing pack export, receipt capture, backup, restore drill, and admin registry.
 - Backup/restore edge tests for unsafe backup target, destructive restore target, and tampered backup hash rejection.
 - Restore drill safety fix preventing restore targets that equal or contain the backup directory.
+- Product-named `WindowsLegalDocumentVault.exe`.
+- Installed package smoke script that installs, launches, uninstalls, and verifies vault data preservation.
 
 ## SDK Requirement
 

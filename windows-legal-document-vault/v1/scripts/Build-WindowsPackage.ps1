@@ -14,6 +14,7 @@ $packageRoot = Join-Path $artifactsRoot "package"
 $packageName = "windows-legal-document-vault-v1-$Runtime"
 $packageDirectory = Join-Path $packageRoot $packageName
 $zipPath = Join-Path $packageRoot "$packageName.zip"
+$executableName = "WindowsLegalDocumentVault.exe"
 $dotnet = Join-Path $env:USERPROFILE ".dotnet\dotnet.exe"
 
 if (-not (Test-Path $dotnet)) {
@@ -47,13 +48,14 @@ Copy-Item -Path (Join-Path $publishRoot "*") -Destination $packageDirectory -Rec
 $installScript = @'
 param(
     [string]$InstallRoot = "$env:LOCALAPPDATA\Programs\WindowsLegalDocumentVault",
-    [switch]$CreateDesktopShortcut
+    [switch]$CreateDesktopShortcut,
+    [switch]$SkipShortcuts
 )
 
 $ErrorActionPreference = "Stop"
 
 $sourceRoot = $PSScriptRoot
-$exePath = Join-Path $sourceRoot "WakiliDms.App.exe"
+$exePath = Join-Path $sourceRoot "WindowsLegalDocumentVault.exe"
 if (-not (Test-Path $exePath)) {
     throw "Packaged executable not found at $exePath"
 }
@@ -61,23 +63,25 @@ if (-not (Test-Path $exePath)) {
 New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
 Copy-Item -Path (Join-Path $sourceRoot "*") -Destination $InstallRoot -Recurse -Force
 
-$installedExe = Join-Path $InstallRoot "WakiliDms.App.exe"
-$startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
-$shortcutPath = Join-Path $startMenu "Windows Legal Document Vault.lnk"
-$shell = New-Object -ComObject WScript.Shell
-$shortcut = $shell.CreateShortcut($shortcutPath)
-$shortcut.TargetPath = $installedExe
-$shortcut.WorkingDirectory = $InstallRoot
-$shortcut.Description = "Windows Legal Document Vault"
-$shortcut.Save()
+$installedExe = Join-Path $InstallRoot "WindowsLegalDocumentVault.exe"
+if (-not $SkipShortcuts) {
+    $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
+    $shortcutPath = Join-Path $startMenu "Windows Legal Document Vault.lnk"
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+    $shortcut.TargetPath = $installedExe
+    $shortcut.WorkingDirectory = $InstallRoot
+    $shortcut.Description = "Windows Legal Document Vault"
+    $shortcut.Save()
 
-if ($CreateDesktopShortcut) {
-    $desktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "Windows Legal Document Vault.lnk"
-    $desktop = $shell.CreateShortcut($desktopShortcut)
-    $desktop.TargetPath = $installedExe
-    $desktop.WorkingDirectory = $InstallRoot
-    $desktop.Description = "Windows Legal Document Vault"
-    $desktop.Save()
+    if ($CreateDesktopShortcut) {
+        $desktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "Windows Legal Document Vault.lnk"
+        $desktop = $shell.CreateShortcut($desktopShortcut)
+        $desktop.TargetPath = $installedExe
+        $desktop.WorkingDirectory = $InstallRoot
+        $desktop.Description = "Windows Legal Document Vault"
+        $desktop.Save()
+    }
 }
 
 "PASS Installed Windows Legal Document Vault to $InstallRoot"
@@ -88,6 +92,7 @@ Set-Content -Path (Join-Path $packageDirectory "install-local.ps1") -Value $inst
 $uninstallScript = @'
 param(
     [string]$InstallRoot = "$env:LOCALAPPDATA\Programs\WindowsLegalDocumentVault",
+    [string]$UserDataRoot = "$env:LOCALAPPDATA\WakiliDms",
     [switch]$DeleteUserVaultData
 )
 
@@ -100,7 +105,7 @@ Remove-Item -LiteralPath $desktopShortcut -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $InstallRoot -Recurse -Force -ErrorAction SilentlyContinue
 
 if ($DeleteUserVaultData) {
-    Remove-Item -LiteralPath (Join-Path $env:LOCALAPPDATA "WakiliDms") -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $UserDataRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 "PASS Uninstalled Windows Legal Document Vault package. User vault data preserved unless DeleteUserVaultData was supplied."
@@ -111,7 +116,7 @@ Set-Content -Path (Join-Path $packageDirectory "uninstall-local.ps1") -Value $un
 $runCommand = @'
 @echo off
 set APP_DIR=%~dp0
-start "" "%APP_DIR%WakiliDms.App.exe"
+start "" "%APP_DIR%WindowsLegalDocumentVault.exe"
 '@
 Set-Content -Path (Join-Path $packageDirectory "run-windows-legal-document-vault.cmd") -Value $runCommand -Encoding ASCII
 
@@ -121,7 +126,7 @@ $manifest = [ordered]@{
     runtime = $Runtime
     frameworkDependent = [bool]$FrameworkDependent
     builtAtUtc = (Get-Date).ToUniversalTime().ToString("O")
-    executable = "WakiliDms.App.exe"
+    executable = $executableName
     installScript = "install-local.ps1"
     uninstallScript = "uninstall-local.ps1"
 }
@@ -137,6 +142,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-local.ps1
 ````
 
 The installer copies the app to ``%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`` and creates a Start Menu shortcut. It does not delete or move user vault data.
+
+The packaged executable is ``WindowsLegalDocumentVault.exe``.
 "@
 Set-Content -Path (Join-Path $packageDirectory "README.md") -Value $readme -Encoding UTF8
 
@@ -145,5 +152,6 @@ Compress-Archive -Path (Join-Path $packageDirectory "*") -DestinationPath $zipPa
 [pscustomobject]@{
     PackageDirectory = $packageDirectory
     ZipPath = $zipPath
+    Executable = $executableName
     FrameworkDependent = [bool]$FrameworkDependent
 } | ConvertTo-Json -Depth 3 -Compress

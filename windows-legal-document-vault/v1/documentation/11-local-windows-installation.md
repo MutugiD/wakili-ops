@@ -65,6 +65,32 @@ Expected result:
 - First-run setup appears if no settings exist.
 - Home screen appears if setup was already completed.
 
+## Build the Windows EXE
+
+The app project publishes as:
+
+```text
+WindowsLegalDocumentVault.exe
+```
+
+From the V1 app root:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+& "$env:USERPROFILE\.dotnet\dotnet.exe" publish src\WakiliDms.App\WakiliDms.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts\publish\win-x64
+```
+
+Expected result:
+
+- `artifacts\publish\win-x64\WindowsLegalDocumentVault.exe`
+- Supporting runtime files for the self-contained Windows build.
+
+Run directly:
+
+```powershell
+.\artifacts\publish\win-x64\WindowsLegalDocumentVault.exe
+```
+
 ## Build a Local Windows Package
 
 Use this when preparing a plug-and-play folder or zip for local Windows testing:
@@ -78,6 +104,7 @@ Expected outputs:
 
 - `artifacts\package\windows-legal-document-vault-v1-win-x64\`
 - `artifacts\package\windows-legal-document-vault-v1-win-x64.zip`
+- `WindowsLegalDocumentVault.exe`
 - `install-local.ps1`
 - `uninstall-local.ps1`
 - `run-windows-legal-document-vault.cmd`
@@ -103,9 +130,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-local.ps1
 Expected result:
 
 - App files are copied to `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
+- Installed executable exists at `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault\WindowsLegalDocumentVault.exe`.
 - A Start Menu shortcut is created for the current Windows user.
 - No administrator privileges are required.
 - Existing vault data under `%LOCALAPPDATA%\WakiliDms` is preserved.
+
+Run installed app:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\WindowsLegalDocumentVault\WindowsLegalDocumentVault.exe"
+```
 
 To create a desktop shortcut too:
 
@@ -161,13 +195,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackag
 Expected result:
 
 - Package is built.
-- Packaged `WakiliDms.App.exe` starts successfully.
+- Packaged `WindowsLegalDocumentVault.exe` starts successfully.
 - Smoke script stops the launched process.
+
+## Installed Package Smoke Test
+
+Use this to prove the generated package installs, launches as an installed app, uninstalls, and preserves user vault data:
+
+```powershell
+cd D:\commercial\Wakili-OPs\windows-legal-document-vault\v1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledWindowsPackage.ps1
+```
+
+Expected result:
+
+- Package is built.
+- `install-local.ps1` installs into a temporary local folder.
+- Installed `WindowsLegalDocumentVault.exe` starts successfully.
+- `uninstall-local.ps1` removes app files.
+- User vault data is preserved unless `-DeleteUserVaultData` is explicitly supplied.
 
 CI uses the faster framework-dependent variant:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-WindowsPackage.ps1 -FrameworkDependent
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledWindowsPackage.ps1 -FrameworkDependent
 ```
 
 ## Local App Data

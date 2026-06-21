@@ -114,3 +114,6 @@ jobs:
 
       - name: Windows package smoke
         run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/Test-WindowsPackage.ps1 -FrameworkDependent
+
+      - name: Installed Windows package smoke
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/Test-InstalledWindowsPackage.ps1 -FrameworkDependent
