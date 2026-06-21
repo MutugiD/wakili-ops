@@ -30,7 +30,8 @@ This log tracks V1 planning and implementation progress.
 | V1 hardening | Windows end-to-end workflow and edge cases | Complete | Added focused Windows E2E script, full matter workflow test, restore target safety fix, unsafe backup target test, destructive restore target test, and tampered backup hash test. |
 | V1 packaging | Windows EXE package/install/run | Complete | Product-named `WindowsLegalDocumentVault.exe`, package build, local install/uninstall scripts, installed executable smoke, and Windows installation guide. |
 | V1 interactive E2E | Installed app workflow with online documents | Complete | Added WPF automation IDs, scrollable Home workflow, isolated app-data test overrides, online DOCX/PDF downloads, and installed-app UI automation from setup through backup/restore drill. |
-| 13 | Optional cloud-backup provider adapter | Planned | Provider interface and encrypted snapshot upload contract. |
+| 13 | Optional cloud-backup provider adapter | Complete | Provider interface, recovery-key encrypted cloud package, redacted metadata, local filesystem provider, download/extract flow, and restore-drill validation. |
+| 14 | Hosted admin/payment entitlement integration | Planned | Hosted entitlement check, payment status, cloud-backup feature activation, and backup-health reporting. |
 
 ## Deferred From V1
 

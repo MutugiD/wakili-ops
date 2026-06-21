@@ -113,6 +113,13 @@ Supported provider strategy:
 - First implementation can support one managed provider selected by the product owner.
 - Later versions can add S3-compatible storage, Azure Blob, Google Cloud Storage, or firm-owned storage.
 
+Current adapter foundation:
+
+- `CloudBackupService` encrypts the entire local backup snapshot package before provider upload.
+- `ICloudBackupProvider` receives only encrypted package bytes and redacted metadata.
+- `LocalFilesystemCloudBackupProvider` exists for repeatable adapter tests and is not a production cloud vendor.
+- Cloud-downloaded packages are decrypted locally with the recovery key before restore drill.
+
 Cloud backup metadata allowed:
 
 - Installation ID.

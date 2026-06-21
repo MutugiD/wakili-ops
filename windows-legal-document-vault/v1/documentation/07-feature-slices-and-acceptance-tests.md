@@ -237,3 +237,19 @@ Manual verification:
 Goal:
 
 - Add a provider interface for opt-in encrypted snapshot upload.
+
+Implemented:
+
+- `ICloudBackupProvider` upload/download/list/delete contract.
+- `CloudBackupService` that encrypts the whole local backup snapshot before provider upload.
+- `LocalFilesystemCloudBackupProvider` as a plug-in test adapter.
+- Cloud restore download that decrypts and extracts to a local restore target.
+
+Acceptance tests:
+
+- Upload is rejected when cloud backup is not enabled for the installation.
+- Upload is rejected when the license is not active or trial.
+- Uploaded provider metadata excludes matter names, party names, court case numbers, document filenames, and OCR/document text.
+- Uploaded package bytes do not expose local backup contents in plain text.
+- Downloaded package can be decrypted with the recovery key and verified by restore drill.
+- Download with the wrong recovery key fails.

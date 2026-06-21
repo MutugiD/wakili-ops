@@ -53,14 +53,23 @@ flowchart LR
 
 The app should define a provider adapter so the first cloud provider can be swapped later.
 
-Conceptual operations:
+Implemented V1 foundation:
 
-- `CheckEntitlement(installationId, licenseKey)`
-- `UploadSnapshot(snapshotId, encryptedBytes, manifest)`
-- `ListSnapshots(installationId)`
-- `DownloadSnapshot(snapshotId)`
-- `DeleteSnapshot(snapshotId)`
-- `ReportBackupHealth(installationId, status)`
+- `ICloudBackupProvider.UploadSnapshotAsync(metadata, encryptedPackageBytes)`
+- `ICloudBackupProvider.DownloadSnapshotAsync(installationId, snapshotId)`
+- `ICloudBackupProvider.ListSnapshotsAsync(installationId)`
+- `ICloudBackupProvider.DeleteSnapshotAsync(installationId, snapshotId)`
+- `CloudBackupService.UploadSnapshotAsync(...)`
+- `CloudBackupService.DownloadSnapshotAsync(...)`
+- `LocalFilesystemCloudBackupProvider` for deterministic provider testing.
+
+The first implemented adapter is not a production cloud vendor. It writes encrypted packages and redacted metadata to a local folder shaped like object storage. This lets the product validate entitlement, encryption, metadata safety, download, and restore behavior before adding S3-compatible storage, Azure Blob, Google Cloud Storage, or a managed Wakili storage endpoint.
+
+Future provider operations:
+
+- `CheckEntitlement(installationId, licenseKey)` against hosted admin/payment backend.
+- `ReportBackupHealth(installationId, status)` to the admin dashboard.
+- Retry/queue upload when the machine is offline.
 
 ## Snapshot Contents
 
@@ -71,6 +80,12 @@ Encrypted snapshot includes:
 - Snapshot manifest.
 - Integrity hashes.
 - App/schema version.
+
+Important implementation detail:
+
+- The local backup directory can contain local vault metadata such as encrypted object JSON.
+- Before cloud upload, the entire local backup directory is zipped and encrypted with the user's recovery key.
+- The cloud provider receives only the encrypted package bytes and allowed cloud metadata.
 
 Snapshot does not include:
 
@@ -84,13 +99,13 @@ Snapshot does not include:
 Allowed metadata:
 
 - Installation ID.
-- License ID.
 - Snapshot ID.
 - Snapshot byte size.
 - Snapshot hash.
 - Created timestamp.
 - Upload status.
-- Restore-tested timestamp if user runs restore drill.
+
+License ID and backup-health reporting are intentionally deferred to the hosted admin/payment backend. The current adapter foundation does not send license keys to provider storage.
 
 Forbidden metadata:
 
@@ -107,11 +122,12 @@ Forbidden metadata:
 1. Install app.
 2. Enter license key or installation recovery code.
 3. Select cloud backup restore.
-4. App downloads encrypted snapshot.
-5. User enters recovery key.
-6. App decrypts locally.
-7. App restores to a new local vault path.
-8. App verifies checksums.
+4. App lists snapshots for that installation.
+5. App downloads encrypted snapshot package.
+6. User enters recovery key.
+7. App decrypts and extracts locally.
+8. App runs the restore drill against the extracted snapshot.
+9. App restores to a new local vault path only after checksum verification.
 
 ## Failure Modes
 
@@ -148,3 +164,23 @@ Cloud backup is acceptable when:
 - Restore works on a second Windows machine with recovery key.
 - Disabling license stops future cloud backup without deleting local data.
 
+## Current Implementation Status
+
+Complete in this slice:
+
+- Provider-neutral cloud backup interface.
+- Recovery-key encrypted cloud package creation.
+- Provider-safe metadata model.
+- Local filesystem provider for repeatable testing.
+- Download/decrypt/extract flow.
+- Restore drill compatibility after cloud download.
+- Tests proving entitlement is required.
+- Tests proving cloud metadata and package bytes do not expose matter names, party names, document filenames, or document text.
+
+Still pending:
+
+- User-facing Backup Center controls for enabling cloud backup.
+- Hosted admin/payment entitlement check.
+- Real cloud/vendor provider.
+- Upload retry queue.
+- Cross-machine restore wizard.

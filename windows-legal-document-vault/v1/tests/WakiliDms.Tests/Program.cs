@@ -1,5 +1,6 @@
 using System.Text.Json;
 using WakiliDms.Core.Backup;
+using WakiliDms.Core.CloudBackup;
 using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Domain;
 using WakiliDms.Core.Documents;
@@ -9,6 +10,7 @@ using WakiliDms.Core.Setup;
 using WakiliDms.Core.Scan;
 using WakiliDms.Core.Search;
 using WakiliDms.Infrastructure.Documents;
+using WakiliDms.Infrastructure.CloudBackup;
 using WakiliDms.Infrastructure.Matter;
 using WakiliDms.Infrastructure.Scan;
 using WakiliDms.Infrastructure.Search;
@@ -47,6 +49,9 @@ var tests = new (string Name, Action Test)[]
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
     ("Restore drill rejects tampered backup hashes", RestoreDrillRejectsTamperedBackupHashes),
+    ("Cloud backup upload requires entitlement", CloudBackupUploadRequiresEntitlement),
+    ("Cloud backup upload stores encrypted package and redacted metadata", CloudBackupUploadStoresEncryptedPackageAndRedactedMetadata),
+    ("Cloud backup download restores snapshot for restore drill", CloudBackupDownloadRestoresSnapshotForRestoreDrill),
     ("Installation identity is generated and preserved", InstallationIdentityIsGeneratedAndPreserved),
     ("Disabled installation blocks licensed feature access without deleting data", DisabledInstallationBlocksLicensedFeatureAccessWithoutDeletingData),
     ("Installation check-in payload excludes document and matter details", InstallationCheckInPayloadExcludesDocumentAndMatterDetails),
@@ -1300,6 +1305,164 @@ static void RestoreDrillRejectsTamperedBackupHashes()
     }
 }
 
+static void CloudBackupUploadRequiresEntitlement()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var cloudRoot = Path.Combine(tempRoot, "cloud");
+    var sourcePath = Path.Combine(tempRoot, "Jane Doe private pleading.docx");
+    var recoveryKey = "cloud entitlement recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Cloud entitlement fixture content.");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var settings = ValidSettings() with
+        {
+            InstallationId = Guid.NewGuid(),
+            LicenseStatus = LicenseStatus.Active,
+            CloudBackupEnabled = false
+        };
+        var result = new CloudBackupService().UploadSnapshotAsync(
+            new CloudBackupUploadRequest(settings, snapshot.Value!.BackupDirectory, recoveryKey),
+            new LocalFilesystemCloudBackupProvider(cloudRoot),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(!result.Succeeded, "Cloud backup upload should require the cloud backup feature to be enabled.");
+        Assert(result.Error!.Contains("not enabled", StringComparison.OrdinalIgnoreCase), "Cloud entitlement error should explain the disabled feature.");
+        Assert(!Directory.Exists(cloudRoot), "Rejected cloud backup upload must not create provider data.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void CloudBackupUploadStoresEncryptedPackageAndRedactedMetadata()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var cloudRoot = Path.Combine(tempRoot, "cloud");
+    var sourcePath = Path.Combine(tempRoot, "Jane Doe v Acme Ltd plaint.docx");
+    var recoveryKey = "cloud redaction recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Jane Doe confidential pleading text should never appear in cloud package bytes.");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var settings = CloudEnabledSettings();
+        var service = new CloudBackupService();
+        var provider = new LocalFilesystemCloudBackupProvider(cloudRoot);
+        var upload = service.UploadSnapshotAsync(
+            new CloudBackupUploadRequest(settings, snapshot.Value!.BackupDirectory, recoveryKey),
+            provider,
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(upload.Succeeded && upload.Value is not null, upload.Error ?? "Cloud upload failed.");
+        var stored = provider.DownloadSnapshotAsync(settings.InstallationId, upload.Value!.Metadata.SnapshotId, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(stored.Succeeded && stored.Value is not null, stored.Error ?? "Stored cloud snapshot should download.");
+
+        var metadataJson = JsonSerializer.Serialize(stored.Value!.Metadata, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var packageText = System.Text.Encoding.UTF8.GetString(stored.Value.EncryptedPackageBytes);
+        Assert(metadataJson.Contains(settings.InstallationId.ToString("D"), StringComparison.OrdinalIgnoreCase), "Cloud metadata should include installation ID.");
+        Assert(metadataJson.Contains(upload.Value.Metadata.SnapshotId, StringComparison.Ordinal), "Cloud metadata should include snapshot ID.");
+        Assert(!metadataJson.Contains("Jane Doe", StringComparison.Ordinal), "Cloud metadata must not include matter names.");
+        Assert(!metadataJson.Contains("Acme", StringComparison.Ordinal), "Cloud metadata must not include party names.");
+        Assert(!metadataJson.Contains("plaint.docx", StringComparison.Ordinal), "Cloud metadata must not include document filenames.");
+        Assert(!packageText.Contains("Jane Doe", StringComparison.Ordinal), "Encrypted cloud package must not expose document text.");
+        Assert(!packageText.Contains("plaint.docx", StringComparison.Ordinal), "Encrypted cloud package must not expose document filenames.");
+
+        var listed = provider.ListSnapshotsAsync(settings.InstallationId, CancellationToken.None).GetAwaiter().GetResult();
+        Assert(listed.Count == 1, "Provider should list one uploaded cloud snapshot.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void CloudBackupDownloadRestoresSnapshotForRestoreDrill()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var cloudRoot = Path.Combine(tempRoot, "cloud");
+    var cloudRestoreTarget = Path.Combine(tempRoot, "cloud-restore");
+    var restoreDrillTarget = Path.Combine(tempRoot, "restore-drill");
+    var sourcePath = Path.Combine(tempRoot, "registry notice.pdf");
+    var recoveryKey = "cloud restore recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nCloud restore registry notice\n%%EOF");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var settings = CloudEnabledSettings();
+        var service = new CloudBackupService();
+        var provider = new LocalFilesystemCloudBackupProvider(cloudRoot);
+        var upload = service.UploadSnapshotAsync(
+            new CloudBackupUploadRequest(settings, snapshot.Value!.BackupDirectory, recoveryKey),
+            provider,
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(upload.Succeeded && upload.Value is not null, upload.Error ?? "Cloud upload failed.");
+
+        var downloaded = service.DownloadSnapshotAsync(
+            new CloudBackupDownloadRequest(settings, upload.Value!.Metadata.SnapshotId, recoveryKey, cloudRestoreTarget),
+            provider,
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(downloaded.Succeeded && downloaded.Value is not null, downloaded.Error ?? "Cloud download failed.");
+        Assert(File.Exists(Path.Combine(cloudRestoreTarget, "backup-manifest.json")), "Cloud restore should extract backup manifest.");
+        Assert(File.Exists(Path.Combine(cloudRestoreTarget, "data", "wakili-dms.db.backup")), "Cloud restore should extract encrypted database artifact.");
+
+        var drill = new RestoreDrillService().RunAsync(
+            new RestoreDrillRequest(cloudRestoreTarget, restoreDrillTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(drill.Succeeded, drill.Error ?? "Restore drill should pass from cloud-downloaded snapshot.");
+        Assert(drill.Value!.VerifiedFileCount == snapshot.Value.BackedUpFileCount, "Cloud-downloaded snapshot should verify every backed-up file.");
+
+        var wrongKey = service.DownloadSnapshotAsync(
+            new CloudBackupDownloadRequest(settings, upload.Value.Metadata.SnapshotId, "wrong recovery key", Path.Combine(tempRoot, "wrong-key")),
+            provider,
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(!wrongKey.Succeeded, "Cloud backup download should reject the wrong recovery key.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
 static void InstallationIdentityIsGeneratedAndPreserved()
 {
     var service = new InstallationControlService();
@@ -1487,6 +1650,17 @@ static AppSettings ValidSettings()
         BackupTargetPath = @"D:\WakiliBackups",
         RecoveryKeyConfirmed = true,
         CloudBackupEnabled = false
+    };
+}
+
+static AppSettings CloudEnabledSettings()
+{
+    return ValidSettings() with
+    {
+        InstallationId = Guid.NewGuid(),
+        LicenseKey = "WLVD-CLOUD-TEST",
+        LicenseStatus = LicenseStatus.Active,
+        CloudBackupEnabled = true
     };
 }
 
