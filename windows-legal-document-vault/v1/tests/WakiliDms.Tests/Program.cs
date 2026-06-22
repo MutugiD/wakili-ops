@@ -57,6 +57,8 @@ var tests = new (string Name, Action Test)[]
     ("Backup retention planner keeps newest snapshots and selects old candidates", BackupRetentionPlannerKeepsNewestSnapshotsAndSelectsOldCandidates),
     ("Backup retention planner rejects invalid policy", BackupRetentionPlannerRejectsInvalidPolicy),
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
+    ("Cloud backup provider path rejects vault overlap", CloudBackupProviderPathRejectsVaultOverlap),
+    ("Cloud backup provider path rejects local backup target overlap", CloudBackupProviderPathRejectsLocalBackupTargetOverlap),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
     ("Restore drill rejects tampered backup hashes", RestoreDrillRejectsTamperedBackupHashes),
     ("Cloud backup upload requires entitlement", CloudBackupUploadRequiresEntitlement),
@@ -1514,6 +1516,60 @@ static void BackupSnapshotRejectsTargetInsideVault()
             Directory.Delete(tempRoot, recursive: true);
         }
     }
+}
+
+static void CloudBackupProviderPathRejectsVaultOverlap()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTargetPath = Path.Combine(tempRoot, "backups");
+
+    var insideVault = BackupStoragePathSafety.ValidateSeparateStoragePath(
+        Path.Combine(vaultPath, "cloud-provider"),
+        vaultPath,
+        backupTargetPath,
+        "Cloud backup provider");
+    var parentOfVault = BackupStoragePathSafety.ValidateSeparateStoragePath(
+        tempRoot,
+        vaultPath,
+        backupTargetPath,
+        "Cloud backup provider");
+    var separate = BackupStoragePathSafety.ValidateSeparateStoragePath(
+        Path.Combine(tempRoot, "cloud-provider"),
+        vaultPath,
+        backupTargetPath,
+        "Cloud backup provider");
+
+    Assert(!insideVault.Succeeded, "Cloud backup provider inside vault should be rejected.");
+    Assert(!parentOfVault.Succeeded, "Cloud backup provider parent of vault should be rejected.");
+    Assert(separate.Succeeded, separate.Error ?? "Separate cloud backup provider path should be allowed.");
+}
+
+static void CloudBackupProviderPathRejectsLocalBackupTargetOverlap()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTargetPath = Path.Combine(tempRoot, "backups");
+
+    var insideBackupTarget = BackupStoragePathSafety.ValidateSeparateStoragePath(
+        Path.Combine(backupTargetPath, "cloud-provider"),
+        vaultPath,
+        backupTargetPath,
+        "Cloud backup provider");
+    var parentOfBackupTarget = BackupStoragePathSafety.ValidateSeparateStoragePath(
+        tempRoot,
+        vaultPath,
+        backupTargetPath,
+        "Cloud backup provider");
+    var separate = BackupStoragePathSafety.ValidateSeparateStoragePath(
+        Path.Combine(tempRoot, "cloud-provider"),
+        vaultPath,
+        backupTargetPath,
+        "Cloud backup provider");
+
+    Assert(!insideBackupTarget.Succeeded, "Cloud backup provider inside local backup target should be rejected.");
+    Assert(!parentOfBackupTarget.Succeeded, "Cloud backup provider parent of local backup target should be rejected.");
+    Assert(separate.Succeeded, separate.Error ?? "Separate cloud backup provider path should be allowed.");
 }
 
 static void RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup()

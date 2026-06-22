@@ -1242,6 +1242,17 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
+        var pathSafety = BackupStoragePathSafety.ValidateSeparateStoragePath(
+            CloudBackupProviderPath,
+            VaultPath,
+            BackupTargetPath,
+            "Cloud backup provider");
+        if (!pathSafety.Succeeded)
+        {
+            StatusMessage = pathSafety.Error ?? "Cloud backup provider folder is not safe.";
+            return;
+        }
+
         var updatedSettings = _currentSettings with
         {
             CloudBackupEnabled = true,
@@ -1758,13 +1769,25 @@ public sealed class MainWindowViewModel : ObservableObject
             return false;
         }
 
+        var pathSafety = BackupStoragePathSafety.ValidateSeparateStoragePath(
+            CloudBackupProviderPath,
+            VaultPath,
+            BackupTargetPath,
+            "Cloud backup provider");
+        if (!pathSafety.Succeeded)
+        {
+            StatusMessage = pathSafety.Error ?? "Cloud backup provider folder is not safe.";
+            return false;
+        }
+
         return true;
     }
 
     private static string DefaultCloudBackupProviderPath(AppSettings settings)
     {
+        var backupTargetParent = Path.GetDirectoryName(Path.GetFullPath(settings.BackupTargetPath));
         return string.IsNullOrWhiteSpace(settings.CloudBackupProviderPath)
-            ? Path.Combine(settings.BackupTargetPath, "cloud-provider")
+            ? Path.Combine(backupTargetParent ?? settings.BackupTargetPath, "cloud-provider")
             : settings.CloudBackupProviderPath;
     }
 }

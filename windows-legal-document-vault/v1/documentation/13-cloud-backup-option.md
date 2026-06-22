@@ -62,6 +62,7 @@ Implemented V1 foundation:
 - `CloudBackupService.UploadSnapshotAsync(...)`
 - `CloudBackupService.DownloadSnapshotAsync(...)`
 - `LocalFilesystemCloudBackupProvider` for deterministic provider testing.
+- Provider folders are rejected if they overlap the encrypted vault or local backup target. The provider path must be an independent storage location.
 
 The first implemented adapter is not a production cloud vendor. It writes encrypted packages and redacted metadata to a local folder shaped like object storage. This lets the product validate entitlement, encryption, metadata safety, download, and restore behavior before adding S3-compatible storage, Azure Blob, Google Cloud Storage, or a managed Wakili storage endpoint.
 

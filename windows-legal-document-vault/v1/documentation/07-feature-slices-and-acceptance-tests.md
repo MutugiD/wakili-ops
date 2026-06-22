@@ -499,3 +499,24 @@ Manual verification:
 - Choose a restore report export folder.
 - Click `Export latest restore report`.
 - Confirm the exported JSON file opens and matches the original restore report.
+
+## Slice 27: Cloud Backup Provider Path Safety
+
+Goal:
+
+- Prevent optional cloud-provider storage from overlapping the encrypted vault or local backup target.
+
+Automated tests:
+
+- Core test rejects a cloud provider folder inside the encrypted vault.
+- Core test rejects a cloud provider folder that is a parent of the encrypted vault.
+- Core test rejects a cloud provider folder inside or above the local backup target.
+- Installed-app workflow attempts to enable cloud backup inside the vault and verifies the safety error before using a valid provider path.
+
+Manual verification:
+
+- Set the cloud provider folder to a subfolder inside the vault.
+- Click `Enable cloud backup`.
+- Confirm the app refuses the path.
+- Repeat with a folder inside the local backup target.
+- Use a separate folder and confirm cloud backup can be enabled.

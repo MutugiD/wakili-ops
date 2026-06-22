@@ -649,6 +649,21 @@ Verification:
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Cloud Backup Provider Path Safety
+
+Implemented:
+
+- `BackupStoragePathSafety` core validator.
+- Cloud backup enablement rejects provider folders that overlap the encrypted vault.
+- Cloud backup enablement rejects provider folders that overlap the local backup target.
+- Cloud feature gate revalidates the provider folder before upload, list, restore, or delete actions.
+- Installed-app workflow verifies unsafe provider rejection before enabling a valid provider.
+
+Verification:
+
+- `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Cloud backup provider path"`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.

@@ -508,6 +508,9 @@ try {
     }
     $remainingBackupDirectory = Split-Path -Parent $backupManifestsAfterRetention[0].FullName
 
+    Set-ElementValue -Window $window -AutomationId "CloudBackupProviderPath" -Value (Join-Path $vaultPath "unsafe-cloud-provider")
+    Invoke-Element -Window $window -AutomationId "EnableCloudBackupButton"
+    Find-TextContaining -Window $window -Text "Cloud backup provider folder must be separate from the encrypted vault folder" -TimeoutSeconds 30 | Out-Null
     Set-ElementValue -Window $window -AutomationId "CloudBackupProviderPath" -Value $cloudProviderPath
     Invoke-Element -Window $window -AutomationId "EnableCloudBackupButton"
     Find-TextContaining -Window $window -Text "Cloud backup enabled" -TimeoutSeconds 30 | Out-Null
@@ -569,15 +572,21 @@ try {
         throw "Cloud backup package remained after delete."
     }
 
+    Invoke-Element -Window $window -AutomationId "RefreshLocalBackupsButton"
+    Find-TextContaining -Window $window -Text "Local backup list refreshed" -TimeoutSeconds 30 | Out-Null
+    Select-FirstListItem -Window $window -AutomationId "LocalBackupsList" | Out-Null
+    $localBackupManifestsBeforeDelete = @(Get-ChildItem -Path $backupPath -Recurse -Filter "backup-manifest.json")
     Invoke-ElementAndConfirmNo -Window $window -AutomationId "DeleteSelectedLocalBackupButton" -ProcessId $process.Id -ConfirmationTitle "Delete local backup snapshot?"
     Find-TextContaining -Window $window -Text "Local backup snapshot delete cancelled" -TimeoutSeconds 30 | Out-Null
-    if (-not (Test-Path $remainingBackupDirectory)) {
-        throw "Selected local backup directory was deleted after cancellation: $remainingBackupDirectory"
+    $localBackupManifestsAfterCancel = @(Get-ChildItem -Path $backupPath -Recurse -Filter "backup-manifest.json")
+    if ($localBackupManifestsAfterCancel.Count -ne $localBackupManifestsBeforeDelete.Count) {
+        throw "Local backup delete cancellation changed backup count from $($localBackupManifestsBeforeDelete.Count) to $($localBackupManifestsAfterCancel.Count)."
     }
     Invoke-ElementAndConfirmYes -Window $window -AutomationId "DeleteSelectedLocalBackupButton" -ProcessId $process.Id -ConfirmationTitle "Delete local backup snapshot?"
     Find-TextContaining -Window $window -Text "Local backup snapshot deleted" -TimeoutSeconds 30 | Out-Null
-    if (Test-Path $remainingBackupDirectory) {
-        throw "Selected local backup directory remained after delete: $remainingBackupDirectory"
+    $localBackupManifestsAfterDelete = @(Get-ChildItem -Path $backupPath -Recurse -Filter "backup-manifest.json")
+    if ($localBackupManifestsAfterDelete.Count -ne ($localBackupManifestsBeforeDelete.Count - 1)) {
+        throw "Local backup delete should remove one manifest; before $($localBackupManifestsBeforeDelete.Count), after $($localBackupManifestsAfterDelete.Count)."
     }
     if (-not (Test-Path (Join-Path $vaultPath "vault.manifest.json"))) {
         throw "Live vault manifest was deleted during backup cleanup."

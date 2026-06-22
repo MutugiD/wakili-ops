@@ -119,6 +119,7 @@ Current adapter foundation:
 - `ICloudBackupProvider` receives only encrypted package bytes and redacted metadata.
 - `LocalFilesystemCloudBackupProvider` exists for repeatable adapter tests and is not a production cloud vendor.
 - Cloud-downloaded packages are decrypted locally with the recovery key before restore drill.
+- Optional cloud-provider folders must be separate from both the encrypted vault and the local backup target. This avoids confusing source-of-truth storage, local backup storage, and provider package storage.
 
 Cloud backup metadata allowed:
 
