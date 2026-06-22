@@ -459,6 +459,7 @@ try {
     Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
     Invoke-Element -Window $window -AutomationId "RestoreSelectedLocalBackupButton"
     Find-TextContaining -Window $window -Text "Local backup restore workspace verified" -TimeoutSeconds 60 | Out-Null
+    Find-TextContaining -Window $window -Text "Last restore report: LocalBackup" -TimeoutSeconds 30 | Out-Null
     $localRestoreDatabaseBackups = @(Get-ChildItem -Path $localRestorePath -Recurse -Filter "wakili-dms.db.backup")
     if ($localRestoreDatabaseBackups.Count -eq 0) {
         throw "Local restore workspace encrypted database backup was not created."
@@ -474,6 +475,7 @@ try {
     Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
     Invoke-Element -Window $window -AutomationId "VerifyExternalBackupButton"
     Find-TextContaining -Window $window -Text "External backup restore verified" -TimeoutSeconds 60 | Out-Null
+    Find-TextContaining -Window $window -Text "Last restore report: ExternalBackup" -TimeoutSeconds 30 | Out-Null
     $externalRestoreDatabaseBackups = @(Get-ChildItem -Path $externalRestorePath -Recurse -Filter "wakili-dms.db.backup")
     if ($externalRestoreDatabaseBackups.Count -eq 0) {
         throw "External restore workspace encrypted database backup was not created."
@@ -520,6 +522,7 @@ try {
     Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
     Invoke-Element -Window $window -AutomationId "RestoreSelectedCloudBackupButton"
     Find-TextContaining -Window $window -Text "Cloud backup restore drill verified" -TimeoutSeconds 60 | Out-Null
+    Find-TextContaining -Window $window -Text "Last restore report: CloudBackup" -TimeoutSeconds 30 | Out-Null
     $cloudRestoreReports = @(Get-ChildItem -Path $cloudRestorePath -Recurse -Filter "restore-verification-report.json")
     if ($cloudRestoreReports.Count -eq 0) {
         throw "Cloud restore verification report was not created."
@@ -541,6 +544,7 @@ try {
     }
     Invoke-ElementAndConfirmYes -Window $window -AutomationId "DeleteSelectedCloudBackupButton" -ProcessId $process.Id -ConfirmationTitle "Delete cloud backup package?"
     Find-TextContaining -Window $window -Text "Cloud backup snapshot deleted" -TimeoutSeconds 30 | Out-Null
+    Find-TextContaining -Window $window -Text "Last restore report: CloudBackup" -TimeoutSeconds 30 | Out-Null
     $cloudPackagesAfterDelete = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
     if ($cloudPackagesAfterDelete.Count -ne 0) {
         throw "Cloud backup package remained after delete."

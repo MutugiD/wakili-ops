@@ -41,6 +41,7 @@ This log tracks V1 planning and implementation progress.
 | 21 | Local backup retention policy automation | Complete | Keep-latest/delete-older-than preview and apply flow for local backup cleanup, with installed-app verification. |
 | 22 | Backup cleanup confirmation prompts | Complete | Local backup delete, cloud package delete, and retention cleanup now require explicit Yes/No confirmation in the Windows app and installed-app workflow. |
 | 23 | Backup cleanup cancellation coverage | Complete | Installed-app workflow chooses No before Yes for retention cleanup, cloud package delete, and local backup delete, proving cancellation preserves artifacts. |
+| 24 | Restore report status summary | Complete | Status panel now keeps the latest restore verification report summary visible across local, external, and cloud restore drills. |
 
 ## Deferred From V1
 

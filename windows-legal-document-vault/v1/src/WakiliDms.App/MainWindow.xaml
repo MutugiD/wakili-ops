@@ -439,6 +439,11 @@
                                    TextWrapping="Wrap"
                                    Foreground="#374151"
                                    Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding LastRestoreReportText}"
+                                   AutomationProperties.AutomationId="LastRestoreReportText"
+                                   TextWrapping="Wrap"
+                                   Foreground="#374151"
+                                   Margin="0,2,0,0" />
 
                         <TextBlock Text="Matters"
                                    FontSize="16"

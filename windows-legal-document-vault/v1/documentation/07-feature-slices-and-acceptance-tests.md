@@ -441,3 +441,22 @@ Manual verification:
 - Choose No.
 - Confirm the status text reports cancellation.
 - Refresh the backup list and confirm the selected backup still exists.
+
+## Slice 24: Restore Report Status Summary
+
+Goal:
+
+- Keep the latest restore verification report visible in the status panel after local, external, or cloud restore drills complete.
+
+Automated tests:
+
+- Installed-app workflow verifies the status panel shows the latest local restore report summary.
+- Installed-app workflow verifies the status panel updates after external backup verification.
+- Installed-app workflow verifies the status panel updates after cloud restore drill.
+- Installed-app workflow verifies the cloud restore report summary remains visible after later cloud cleanup actions.
+
+Manual verification:
+
+- Run a selected local backup restore workspace.
+- Confirm the status panel shows source type, snapshot/source ID, verified file count, byte count, and report path.
+- Repeat for external backup verification and cloud restore drill.

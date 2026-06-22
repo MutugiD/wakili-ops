@@ -607,8 +607,22 @@ Verification:
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Restore Report Status Summary
+
+Implemented:
+
+- `LastRestoreReportText` view-model state.
+- Status panel binding for latest restore report summary.
+- Local, external, and cloud restore report paths update the persistent summary.
+- Installed-app workflow assertions for each restore source.
+- Installed-app workflow assertion that the latest restore summary survives later cleanup actions.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Backup restore usability polish.
+2. Restore report file opener/export convenience.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

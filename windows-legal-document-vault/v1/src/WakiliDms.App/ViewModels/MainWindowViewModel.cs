@@ -86,6 +86,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _backupHealthStatus = "Backup health: setup incomplete.";
     private string _lastLocalBackupText = "Last local backup: none";
     private string _lastCloudBackupText = "Last cloud backup: none";
+    private string _lastRestoreReportText = "Last restore report: none";
     private string _statusMessage = "Complete setup to create a local-first document vault.";
 
     public MainWindowViewModel(
@@ -469,6 +470,12 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _lastCloudBackupText;
         private set => SetProperty(ref _lastCloudBackupText, value);
+    }
+
+    public string LastRestoreReportText
+    {
+        get => _lastRestoreReportText;
+        private set => SetProperty(ref _lastRestoreReportText, value);
     }
 
     public bool IsSetupComplete
@@ -1428,9 +1435,11 @@ public sealed class MainWindowViewModel : ObservableObject
             drill.RestoreDirectory,
             report,
             CancellationToken.None);
-        return result.Succeeded && result.Value is not null
+        var reportPath = result.Succeeded && result.Value is not null
             ? result.Value
             : result.Error ?? "report unavailable";
+        LastRestoreReportText = $"Last restore report: {sourceKind} {sourceIdentifier}, {drill.VerifiedFileCount:N0} file(s), {drill.RestoredByteLength:N0} byte(s), report: {reportPath}";
+        return reportPath;
     }
 
     private Result<BackupRetentionPlan> BuildLocalRetentionPlan()
