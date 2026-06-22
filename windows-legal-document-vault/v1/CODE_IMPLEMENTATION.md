@@ -104,6 +104,7 @@ Completed:
 - Installed app interactive E2E clicks real backup cleanup confirmation dialogs.
 - Installed app interactive E2E chooses No before Yes and verifies canceled backup cleanup preserves artifacts.
 - Persistent latest restore report summary in the status panel for local, external, and cloud restore drills.
+- Copy latest restore report path action backed by the Windows clipboard and installed-app clipboard verification.
 
 ## SDK Requirement
 
@@ -144,3 +145,4 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 23. Slice 22: backup cleanup confirmation prompts.
 24. Slice 23: backup cleanup cancellation coverage.
 25. Slice 24: restore report status summary.
+26. Slice 25: copy latest restore report path.

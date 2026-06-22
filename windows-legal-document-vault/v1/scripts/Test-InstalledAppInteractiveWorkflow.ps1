@@ -527,6 +527,12 @@ try {
     if ($cloudRestoreReports.Count -eq 0) {
         throw "Cloud restore verification report was not created."
     }
+    Invoke-Element -Window $window -AutomationId "CopyLastRestoreReportPathButton"
+    Find-TextContaining -Window $window -Text "Latest restore verification report path copied" -TimeoutSeconds 30 | Out-Null
+    $clipboardText = (Get-Clipboard -Raw).Trim()
+    if ($clipboardText -ne $cloudRestoreReports[0].FullName) {
+        throw "Clipboard did not contain the latest restore report path. Expected '$($cloudRestoreReports[0].FullName)' but found '$clipboardText'."
+    }
     $cloudPackages = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
     if ($cloudPackages.Count -eq 0) {
         throw "Cloud backup package was not created."

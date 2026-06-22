@@ -34,7 +34,8 @@ public partial class App : Application
             documentSearchRepository,
             documentTextExtractor,
             vaultService,
-            new WpfUserConfirmationService());
+            new WpfUserConfirmationService(),
+            new WpfClipboardService());
         await viewModel.LoadAsync();
 
         var window = new MainWindow(viewModel);

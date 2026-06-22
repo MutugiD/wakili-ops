@@ -43,6 +43,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly CloudBackupService _cloudBackupService;
     private readonly InstallationControlService _installationControlService;
     private readonly IUserConfirmationService _confirmationService;
+    private readonly IClipboardService _clipboardService;
     private AppSettings? _currentSettings;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
@@ -87,6 +88,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _lastLocalBackupText = "Last local backup: none";
     private string _lastCloudBackupText = "Last cloud backup: none";
     private string _lastRestoreReportText = "Last restore report: none";
+    private string _lastRestoreReportPath = string.Empty;
     private string _statusMessage = "Complete setup to create a local-first document vault.";
 
     public MainWindowViewModel(
@@ -99,7 +101,8 @@ public sealed class MainWindowViewModel : ObservableObject
         IDocumentSearchRepository documentSearchRepository,
         IDocumentTextExtractor documentTextExtractor,
         IVaultService vaultService,
-        IUserConfirmationService? confirmationService = null)
+        IUserConfirmationService? confirmationService = null,
+        IClipboardService? clipboardService = null)
     {
         _databasePath = databasePath;
         _settingsStore = settingsStore;
@@ -110,6 +113,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _documentSearchRepository = documentSearchRepository;
         _vaultService = vaultService;
         _confirmationService = confirmationService ?? AllowAllUserConfirmationService.Instance;
+        _clipboardService = clipboardService ?? NoOpClipboardService.Instance;
         _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _documentVersionRepository, _vaultService);
         _scanFolderService = new ScanFolderService(_scanInboxRepository);
         _documentIndexingService = new DocumentIndexingService(_documentRepository, _vaultService, documentTextExtractor, _documentSearchRepository);
@@ -146,6 +150,7 @@ public sealed class MainWindowViewModel : ObservableObject
         RefreshCloudBackupsCommand = new AsyncRelayCommand(RefreshCloudBackupsAsync, () => CanUseInstall && CloudBackupEnabled);
         RestoreSelectedCloudBackupCommand = new AsyncRelayCommand(RestoreSelectedCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled && SelectedCloudBackupSnapshot is not null);
         DeleteSelectedCloudBackupCommand = new AsyncRelayCommand(DeleteSelectedCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled && SelectedCloudBackupSnapshot is not null);
+        CopyLastRestoreReportPathCommand = new AsyncRelayCommand(CopyLastRestoreReportPathAsync, () => CanUseInstall && !string.IsNullOrWhiteSpace(_lastRestoreReportPath));
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -545,6 +550,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ICommand RestoreSelectedCloudBackupCommand { get; }
 
     public ICommand DeleteSelectedCloudBackupCommand { get; }
+
+    public ICommand CopyLastRestoreReportPathCommand { get; }
 
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
@@ -1400,6 +1407,30 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"Cloud backup snapshot deleted: {snapshotId}.";
     }
 
+    public Task CopyLastRestoreReportPathAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return Task.CompletedTask;
+        }
+
+        if (string.IsNullOrWhiteSpace(_lastRestoreReportPath))
+        {
+            StatusMessage = "No restore verification report is available yet.";
+            return Task.CompletedTask;
+        }
+
+        if (!File.Exists(_lastRestoreReportPath))
+        {
+            StatusMessage = $"Latest restore verification report no longer exists: {_lastRestoreReportPath}.";
+            return Task.CompletedTask;
+        }
+
+        _clipboardService.SetText(_lastRestoreReportPath);
+        StatusMessage = $"Latest restore verification report path copied: {_lastRestoreReportPath}.";
+        return Task.CompletedTask;
+    }
+
     private async Task ReloadMattersAsync()
     {
         var selectedMatterId = SelectedMatter?.Id;
@@ -1438,7 +1469,9 @@ public sealed class MainWindowViewModel : ObservableObject
         var reportPath = result.Succeeded && result.Value is not null
             ? result.Value
             : result.Error ?? "report unavailable";
+        _lastRestoreReportPath = File.Exists(reportPath) ? reportPath : string.Empty;
         LastRestoreReportText = $"Last restore report: {sourceKind} {sourceIdentifier}, {drill.VerifiedFileCount:N0} file(s), {drill.RestoredByteLength:N0} byte(s), report: {reportPath}";
+        (CopyLastRestoreReportPathCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         return reportPath;
     }
 
@@ -1638,6 +1671,7 @@ public sealed class MainWindowViewModel : ObservableObject
         (RefreshCloudBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (DeleteSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (CopyLastRestoreReportPathCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private bool CanUseLicensedFeatures()

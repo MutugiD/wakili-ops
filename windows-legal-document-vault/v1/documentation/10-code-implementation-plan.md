@@ -621,8 +621,22 @@ Verification:
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Copy Latest Restore Report Path
+
+Implemented:
+
+- `IClipboardService` abstraction.
+- WPF clipboard adapter.
+- `CopyLastRestoreReportPathCommand`.
+- Status panel button for copying the latest restore report path.
+- Installed-app workflow assertion that the copied clipboard value matches the generated cloud restore report path.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Restore report file opener/export convenience.
+2. Restore report file opener convenience.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

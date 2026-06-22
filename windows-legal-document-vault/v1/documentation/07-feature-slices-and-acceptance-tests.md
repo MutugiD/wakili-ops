@@ -460,3 +460,22 @@ Manual verification:
 - Run a selected local backup restore workspace.
 - Confirm the status panel shows source type, snapshot/source ID, verified file count, byte count, and report path.
 - Repeat for external backup verification and cloud restore drill.
+
+## Slice 25: Copy Latest Restore Report Path
+
+Goal:
+
+- Let the user copy the latest restore verification report path from the status panel.
+
+Automated tests:
+
+- Installed-app workflow runs a cloud restore drill.
+- Installed-app workflow clicks `Copy latest restore report path`.
+- Installed-app workflow verifies the status message confirms the copy action.
+- Installed-app workflow verifies the Windows clipboard contains the actual `restore-verification-report.json` path.
+
+Manual verification:
+
+- Run any restore drill.
+- Click `Copy latest restore report path`.
+- Paste into File Explorer, a terminal, or a message and confirm it points to the report file.
