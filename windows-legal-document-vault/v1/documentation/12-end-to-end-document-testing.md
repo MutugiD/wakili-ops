@@ -48,6 +48,7 @@ Expected workflow coverage:
 - Cloud backup uploads an encrypted package to the local provider adapter.
 - Backup health updates after cloud backup.
 - Cloud restore drill verifies the selected cloud snapshot.
+- Selected local and cloud backup deletion leaves the live vault intact.
 
 ## Recommended Test Folder
 

@@ -52,12 +52,15 @@ var tests = new (string Name, Action Test)[]
     ("Backup health reports healthy local and cloud backups", BackupHealthReportsHealthyLocalAndCloudBackups),
     ("Backup health reports stale local backups", BackupHealthReportsStaleLocalBackups),
     ("Local backup catalog lists restorable snapshots", LocalBackupCatalogListsRestorableSnapshots),
+    ("Local backup delete removes only selected snapshot", LocalBackupDeleteRemovesOnlySelectedSnapshot),
+    ("Local backup delete rejects folders outside backup target", LocalBackupDeleteRejectsFoldersOutsideBackupTarget),
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
     ("Restore drill rejects tampered backup hashes", RestoreDrillRejectsTamperedBackupHashes),
     ("Cloud backup upload requires entitlement", CloudBackupUploadRequiresEntitlement),
     ("Cloud backup upload stores encrypted package and redacted metadata", CloudBackupUploadStoresEncryptedPackageAndRedactedMetadata),
     ("Cloud backup download restores snapshot for restore drill", CloudBackupDownloadRestoresSnapshotForRestoreDrill),
+    ("Cloud backup delete removes selected provider snapshot", CloudBackupDeleteRemovesSelectedProviderSnapshot),
     ("Installation identity is generated and preserved", InstallationIdentityIsGeneratedAndPreserved),
     ("Disabled installation blocks licensed feature access without deleting data", DisabledInstallationBlocksLicensedFeatureAccessWithoutDeletingData),
     ("Installation check-in payload excludes document and matter details", InstallationCheckInPayloadExcludesDocumentAndMatterDetails),
@@ -1247,6 +1250,67 @@ static void LocalBackupCatalogListsRestorableSnapshots()
     }
 }
 
+static void LocalBackupDeleteRemovesOnlySelectedSnapshot()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var sourcePath = Path.Combine(tempRoot, "delete-backup.docx");
+    var recoveryKey = "local delete recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Local delete fixture content.");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var vaultManifestPath = Path.Combine(vaultPath, "vault.manifest.json");
+        var deleted = new LocalBackupDeletionService().DeleteSnapshot(backupTarget, snapshot.Value!.BackupDirectory);
+
+        Assert(deleted.Succeeded, deleted.Error ?? "Local backup delete should succeed.");
+        Assert(!Directory.Exists(snapshot.Value.BackupDirectory), "Selected backup snapshot folder should be deleted.");
+        Assert(File.Exists(vaultManifestPath), "Deleting a backup snapshot must not delete the live vault.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void LocalBackupDeleteRejectsFoldersOutsideBackupTarget()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var outsideFolder = Path.Combine(tempRoot, "outside-backup");
+
+    try
+    {
+        Directory.CreateDirectory(backupTarget);
+        Directory.CreateDirectory(outsideFolder);
+        File.WriteAllText(Path.Combine(outsideFolder, "backup-manifest.json"), "{}");
+
+        var deleted = new LocalBackupDeletionService().DeleteSnapshot(backupTarget, outsideFolder);
+
+        Assert(!deleted.Succeeded, "Delete should reject folders outside the configured backup target.");
+        Assert(Directory.Exists(outsideFolder), "Rejected delete must leave the outside folder in place.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
 static void RestoreDrillVerifiesBackupCopiedFromAnotherMachine()
 {
     var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
@@ -1646,6 +1710,53 @@ static void CloudBackupDownloadRestoresSnapshotForRestoreDrill()
             provider,
             CancellationToken.None).GetAwaiter().GetResult();
         Assert(!wrongKey.Succeeded, "Cloud backup download should reject the wrong recovery key.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void CloudBackupDeleteRemovesSelectedProviderSnapshot()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var cloudRoot = Path.Combine(tempRoot, "cloud");
+    var sourcePath = Path.Combine(tempRoot, "cloud-delete.pdf");
+    var recoveryKey = "cloud delete recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nCloud delete fixture\n%%EOF");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var settings = CloudEnabledSettings();
+        var provider = new LocalFilesystemCloudBackupProvider(cloudRoot);
+        var upload = new CloudBackupService().UploadSnapshotAsync(
+            new CloudBackupUploadRequest(settings, snapshot.Value!.BackupDirectory, recoveryKey),
+            provider,
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(upload.Succeeded && upload.Value is not null, upload.Error ?? "Cloud upload failed.");
+
+        var deleted = provider.DeleteSnapshotAsync(
+            settings.InstallationId,
+            upload.Value!.Metadata.SnapshotId,
+            CancellationToken.None).GetAwaiter().GetResult();
+        var listed = provider.ListSnapshotsAsync(settings.InstallationId, CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(deleted.Succeeded, deleted.Error ?? "Cloud delete should succeed.");
+        Assert(listed.Count == 0, "Deleted cloud snapshot should not remain in provider list.");
+        Assert(File.Exists(Path.Combine(vaultPath, "vault.manifest.json")), "Deleting a cloud snapshot must not delete the live vault.");
     }
     finally
     {

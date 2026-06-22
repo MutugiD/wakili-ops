@@ -256,6 +256,7 @@ Expected result:
 - The cloud snapshot list is refreshed and a snapshot is selected.
 - The selected cloud snapshot is downloaded and restore drill is verified.
 - The cloud package is checked for obvious plain-text matter/document leakage.
+- Selected cloud and local backup snapshots can be deleted without deleting the live vault.
 
 The script uses isolated app data by default through:
 

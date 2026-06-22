@@ -34,6 +34,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly CourtOutputCaptureService _courtOutputCaptureService;
     private readonly BackupSnapshotService _backupSnapshotService;
     private readonly LocalBackupCatalogService _localBackupCatalogService;
+    private readonly LocalBackupDeletionService _localBackupDeletionService;
     private readonly BackupHealthEvaluationService _backupHealthEvaluationService;
     private readonly RestoreDrillService _restoreDrillService;
     private readonly RestoreVerificationReportService _restoreVerificationReportService;
@@ -107,6 +108,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _courtOutputCaptureService = new CourtOutputCaptureService(_documentImportService);
         _backupSnapshotService = new BackupSnapshotService();
         _localBackupCatalogService = new LocalBackupCatalogService();
+        _localBackupDeletionService = new LocalBackupDeletionService();
         _backupHealthEvaluationService = new BackupHealthEvaluationService();
         _restoreDrillService = new RestoreDrillService();
         _restoreVerificationReportService = new RestoreVerificationReportService();
@@ -125,11 +127,13 @@ public sealed class MainWindowViewModel : ObservableObject
         RunBackupCommand = new AsyncRelayCommand(RunBackupAsync, () => CanUseInstall);
         RefreshLocalBackupsCommand = new AsyncRelayCommand(RefreshLocalBackupsAsync, () => CanUseInstall);
         RestoreSelectedLocalBackupCommand = new AsyncRelayCommand(RestoreSelectedLocalBackupAsync, () => CanUseInstall && SelectedLocalBackupSnapshot is not null);
+        DeleteSelectedLocalBackupCommand = new AsyncRelayCommand(DeleteSelectedLocalBackupAsync, () => CanUseInstall && SelectedLocalBackupSnapshot is not null);
         VerifyExternalBackupCommand = new AsyncRelayCommand(VerifyExternalBackupAsync, () => CanUseInstall);
         EnableCloudBackupCommand = new AsyncRelayCommand(EnableCloudBackupAsync, () => CanUseInstall);
         UploadCloudBackupCommand = new AsyncRelayCommand(UploadCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled);
         RefreshCloudBackupsCommand = new AsyncRelayCommand(RefreshCloudBackupsAsync, () => CanUseInstall && CloudBackupEnabled);
         RestoreSelectedCloudBackupCommand = new AsyncRelayCommand(RestoreSelectedCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled && SelectedCloudBackupSnapshot is not null);
+        DeleteSelectedCloudBackupCommand = new AsyncRelayCommand(DeleteSelectedCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled && SelectedCloudBackupSnapshot is not null);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -344,6 +348,7 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetProperty(ref _selectedLocalBackupSnapshot, value))
             {
                 (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (DeleteSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -356,6 +361,7 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetProperty(ref _selectedCloudBackupSnapshot, value))
             {
                 (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (DeleteSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -409,6 +415,7 @@ public sealed class MainWindowViewModel : ObservableObject
                 (UploadCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (RefreshCloudBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
                 (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (DeleteSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -485,6 +492,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand RestoreSelectedLocalBackupCommand { get; }
 
+    public ICommand DeleteSelectedLocalBackupCommand { get; }
+
     public ICommand VerifyExternalBackupCommand { get; }
 
     public ICommand EnableCloudBackupCommand { get; }
@@ -494,6 +503,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ICommand RefreshCloudBackupsCommand { get; }
 
     public ICommand RestoreSelectedCloudBackupCommand { get; }
+
+    public ICommand DeleteSelectedCloudBackupCommand { get; }
 
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
@@ -998,6 +1009,34 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"Local backup restore workspace verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}. Report: {reportPath}.";
     }
 
+    public async Task DeleteSelectedLocalBackupAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (SelectedLocalBackupSnapshot is null)
+        {
+            StatusMessage = "Select a local backup snapshot before deleting.";
+            return;
+        }
+
+        var snapshotId = SelectedLocalBackupSnapshot.SnapshotId;
+        var result = _localBackupDeletionService.DeleteSnapshot(
+            BackupTargetPath,
+            SelectedLocalBackupSnapshot.BackupDirectory);
+        if (!result.Succeeded)
+        {
+            StatusMessage = result.Error ?? "Local backup snapshot delete failed.";
+            return;
+        }
+
+        SelectedLocalBackupSnapshot = null;
+        await ReloadLocalBackupsAsync();
+        StatusMessage = $"Local backup snapshot deleted: {snapshotId}.";
+    }
+
     public async Task VerifyExternalBackupAsync()
     {
         if (!CanUseLicensedFeatures())
@@ -1194,6 +1233,41 @@ public sealed class MainWindowViewModel : ObservableObject
             "CloudBackup",
             SelectedCloudBackupSnapshot.SnapshotId);
         StatusMessage = $"Cloud backup restore drill verified {drill.Value.VerifiedFileCount:N0} file(s) from snapshot {SelectedCloudBackupSnapshot.SnapshotId}. Report: {reportPath}.";
+    }
+
+    public async Task DeleteSelectedCloudBackupAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (!CanUseCloudBackup())
+        {
+            return;
+        }
+
+        if (SelectedCloudBackupSnapshot is null)
+        {
+            StatusMessage = "Select a cloud backup snapshot before deleting.";
+            return;
+        }
+
+        var snapshotId = SelectedCloudBackupSnapshot.SnapshotId;
+        var provider = new LocalFilesystemCloudBackupProvider(CloudBackupProviderPath);
+        var result = await provider.DeleteSnapshotAsync(
+            _currentSettings!.InstallationId,
+            snapshotId,
+            CancellationToken.None);
+        if (!result.Succeeded)
+        {
+            StatusMessage = result.Error ?? "Cloud backup snapshot delete failed.";
+            return;
+        }
+
+        SelectedCloudBackupSnapshot = null;
+        await ReloadCloudBackupsAsync();
+        StatusMessage = $"Cloud backup snapshot deleted: {snapshotId}.";
     }
 
     private async Task ReloadMattersAsync()
@@ -1394,11 +1468,13 @@ public sealed class MainWindowViewModel : ObservableObject
         (RunBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RefreshLocalBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (DeleteSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (VerifyExternalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (EnableCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (UploadCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RefreshCloudBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (DeleteSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private bool CanUseLicensedFeatures()

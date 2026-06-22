@@ -413,6 +413,21 @@ try {
     if ($packageText.Contains("Republic v Online Sample Documents") -or $packageText.Contains("sample-online-pleading.docx")) {
         throw "Cloud backup package exposed matter or document details in plain text."
     }
+    Invoke-Element -Window $window -AutomationId "DeleteSelectedCloudBackupButton"
+    Find-TextContaining -Window $window -Text "Cloud backup snapshot deleted" -TimeoutSeconds 30 | Out-Null
+    $cloudPackagesAfterDelete = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
+    if ($cloudPackagesAfterDelete.Count -ne 0) {
+        throw "Cloud backup package remained after delete."
+    }
+
+    Invoke-Element -Window $window -AutomationId "DeleteSelectedLocalBackupButton"
+    Find-TextContaining -Window $window -Text "Local backup snapshot deleted" -TimeoutSeconds 30 | Out-Null
+    if (Test-Path $sourceBackupDirectory) {
+        throw "Selected local backup directory remained after delete: $sourceBackupDirectory"
+    }
+    if (-not (Test-Path (Join-Path $vaultPath "vault.manifest.json"))) {
+        throw "Live vault manifest was deleted during backup cleanup."
+    }
 
     $settingsPath = if ($UseDefaultUserAppData) {
         Join-Path $env:LOCALAPPDATA "WakiliDms\settings.json"
@@ -438,6 +453,7 @@ try {
         ExternalRestoreReportCount = $externalRestoreReports.Count
         CloudRestoreReportCount = $cloudRestoreReports.Count
         CloudBackupPackageCount = $cloudPackages.Count
+        CloudBackupPackageCountAfterDelete = $cloudPackagesAfterDelete.Count
         UsedDefaultUserAppData = [bool]$UseDefaultUserAppData
     } | ConvertTo-Json -Depth 4
 }

@@ -356,3 +356,25 @@ Manual verification:
 - Confirm health shows a local backup is available.
 - Upload cloud backup.
 - Confirm health shows local and cloud backups are available.
+
+## Slice 20: Backup Retention And Cleanup
+
+Goal:
+
+- Let the user delete selected local and cloud backup snapshots without touching the live vault.
+
+Automated tests:
+
+- Local backup delete removes only the selected backup snapshot.
+- Local backup delete rejects folders outside the configured backup target.
+- Cloud backup delete removes only the selected provider snapshot.
+- Installed-app workflow verifies local and cloud delete actions and confirms the live vault remains.
+
+Manual verification:
+
+- Select a local backup snapshot.
+- Delete the selected local backup.
+- Confirm the live vault remains in place.
+- Select a cloud backup snapshot.
+- Delete the selected cloud backup.
+- Refresh backup lists and confirm deleted snapshots no longer appear.

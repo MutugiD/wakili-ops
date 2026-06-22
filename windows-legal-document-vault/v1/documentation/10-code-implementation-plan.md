@@ -547,8 +547,23 @@ Verification:
 - `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Backup health"`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Backup Retention And Cleanup
+
+Implemented:
+
+- `LocalBackupDeletionService` with configured-target and manifest safety checks.
+- Delete selected local backup command and UI button.
+- Delete selected cloud backup command and UI button.
+- Local filesystem cloud provider delete validation and error handling.
+- Installed-app interactive workflow verifies cloud package deletion, local snapshot deletion, and live vault preservation.
+
+Verification:
+
+- `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "delete"`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Backup retention and cleanup policy.
+2. Backup cleanup confirmation and retention policy automation.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

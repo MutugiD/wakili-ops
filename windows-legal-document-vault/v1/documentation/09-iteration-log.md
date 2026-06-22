@@ -37,6 +37,7 @@ This log tracks V1 planning and implementation progress.
 | 17 | Cross-machine backup restore verification | Complete | External backup folder path, external restore workspace, copied-backup restore drill, and installed-app UI verification. |
 | 18 | Restore verification reports | Complete | Local, external, and cloud restore verification now write privacy-preserving `restore-verification-report.json` files. |
 | 19 | Backup health summary | Complete | Home status panel shows local/cloud backup health, last local backup time, and last cloud backup time. |
+| 20 | Backup retention and cleanup | Complete | Selected local backup delete, selected cloud backup delete, safety checks, and installed-app vault preservation verification. |
 
 ## Deferred From V1
 

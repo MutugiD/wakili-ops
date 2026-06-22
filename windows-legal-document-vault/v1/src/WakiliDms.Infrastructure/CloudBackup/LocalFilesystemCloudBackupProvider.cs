@@ -140,14 +140,31 @@ public sealed class LocalFilesystemCloudBackupProvider : ICloudBackupProvider
         CancellationToken cancellationToken)
     {
         _ = cancellationToken;
+        if (installationId == Guid.Empty)
+        {
+            return Task.FromResult(Result.Fail("Installation ID is required for cloud backup delete."));
+        }
+
+        if (string.IsNullOrWhiteSpace(snapshotId))
+        {
+            return Task.FromResult(Result.Fail("Snapshot ID is required for cloud backup delete."));
+        }
+
         var snapshotDirectory = SnapshotDirectory(installationId, snapshotId);
         if (!Directory.Exists(snapshotDirectory))
         {
             return Task.FromResult(Result.Fail("Cloud backup snapshot was not found."));
         }
 
-        Directory.Delete(snapshotDirectory, recursive: true);
-        return Task.FromResult(Result.Ok());
+        try
+        {
+            Directory.Delete(snapshotDirectory, recursive: true);
+            return Task.FromResult(Result.Ok());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(Result.Fail($"Cloud backup delete failed: {ex.Message}"));
+        }
     }
 
     private string InstallationDirectory(Guid installationId)
