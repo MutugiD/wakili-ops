@@ -14,6 +14,7 @@ $patterns = @(
 $files = Get-ChildItem -Path . -Recurse -File |
   Where-Object {
     $_.FullName -notmatch "\\.git\\|\\bin\\|\\obj\\" -and
+    $_.FullName -notmatch "\\artifacts\\" -and
     $_.Extension -in @(".md", ".cs", ".xaml", ".yml", ".yaml", ".ps1", ".toml", ".csproj", ".sln")
   }
 

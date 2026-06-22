@@ -20,6 +20,8 @@ public sealed record AppSettings
 
     public bool CloudBackupEnabled { get; init; }
 
+    public string CloudBackupProviderPath { get; init; } = string.Empty;
+
     public Guid InstallationId { get; init; }
 
     public string LicenseKey { get; init; } = string.Empty;

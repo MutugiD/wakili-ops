@@ -244,6 +244,14 @@ Expected result:
 - A downloaded PDF is queued through the watched scan folder and imported through Scan Inbox.
 - A filing pack is exported.
 - A backup snapshot is created and restore drill is verified.
+- The local backup list is refreshed.
+- A local backup snapshot is selected.
+- A selected local backup restore workspace is created and verified.
+- Cloud backup is enabled against a local provider folder.
+- An encrypted cloud backup package is uploaded.
+- The cloud snapshot list is refreshed and a snapshot is selected.
+- The selected cloud snapshot is downloaded and restore drill is verified.
+- The cloud package is checked for obvious plain-text matter/document leakage.
 
 The script uses isolated app data by default through:
 

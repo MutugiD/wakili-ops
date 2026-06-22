@@ -40,6 +40,10 @@ Expected workflow coverage:
 - The online PDF is copied into the watched scan folder, queued, and imported through Scan Inbox.
 - The matter is exported as a filing pack.
 - Backup snapshot and restore drill complete.
+- Local backup snapshot list refreshes.
+- Selected local backup restore workspace is verified.
+- Cloud backup uploads an encrypted package to the local provider adapter.
+- Cloud restore drill verifies the selected cloud snapshot.
 
 ## Recommended Test Folder
 

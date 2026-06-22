@@ -4,7 +4,7 @@ This file is a short pointer for the code build sequence. The detailed V1 implem
 
 ## Current Slice
 
-Slice 14: hosted admin/payment entitlement integration.
+Next slice: cross-machine restore wizard or production cloud provider adapter can be resumed when release priorities are set.
 
 Completed:
 
@@ -86,6 +86,10 @@ Completed:
 - Recovery-key encrypted cloud backup package creation.
 - Local filesystem cloud-backup provider for adapter testing.
 - Cloud backup entitlement, metadata redaction, download, and restore-drill tests.
+- User-facing Backup Center controls for local-provider cloud backup.
+- Installed app interactive E2E verifies local backup, encrypted cloud upload, snapshot selection, and cloud restore drill.
+- Local backup catalog and restore workspace browser.
+- Installed app interactive E2E verifies local backup list refresh, selected local restore workspace, and restored encrypted database artifact creation.
 
 ## SDK Requirement
 
@@ -115,4 +119,6 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 12. Slice 11: installer and cross-machine test.
 13. Slice 12: admin install telemetry and disable flow.
 14. Slice 13: optional cloud-backup provider adapter.
-15. Slice 14: hosted admin/payment entitlement integration. Current next slice.
+15. Slice 14: hosted admin/payment entitlement integration. Skipped for now.
+16. Slice 15: user-facing Backup Center cloud controls.
+17. Slice 16: local backup restore workspace browser.

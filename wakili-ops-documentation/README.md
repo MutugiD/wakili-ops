@@ -4,6 +4,8 @@ This documentation pack defines a documentation-first product plan for a Windows
 
 The immediate product focus is the Windows Legal Document Vault: a local-first Windows document management, scanning, OCR, filing-pack, and backup system. The Local Matter RAG Connector and Wakili-Mkononi Matter AI Integration are documented as separate future products so the architecture does not collapse into one large platform too early.
 
+For the implementation phase map, see [Wakili Ops Product Phases](../PHASES.md).
+
 ## Product Set
 
 ### Windows Legal Document Vault

@@ -1,6 +1,10 @@
 # Local Matter RAG Connector V1
 
-This folder is the V1 documentation scaffold for the Local Matter RAG Connector.
+This folder is the V1 documentation pack for the Local Matter RAG Connector.
+
+Start with:
+
+- [Phase 2 Product Plan](01-phase-2-product-plan.md)
 
 ## Purpose
 
@@ -36,4 +40,3 @@ local-matter-rag-connector/v1/
 - No raw document custody.
 - No training models on firm data.
 - No cross-matter retrieval without explicit permission.
-

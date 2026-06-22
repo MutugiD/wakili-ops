@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows.Input;
 using System.Collections.ObjectModel;
 using WakiliDms.Core.Backup;
+using WakiliDms.Core.CloudBackup;
 using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
@@ -12,6 +13,7 @@ using WakiliDms.Core.Scan;
 using WakiliDms.Core.Search;
 using WakiliDms.Core.Setup;
 using WakiliDms.Core.Vault;
+using WakiliDms.Infrastructure.CloudBackup;
 
 namespace WakiliDms.App.ViewModels;
 
@@ -31,8 +33,11 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly FilingPackExportService _filingPackExportService;
     private readonly CourtOutputCaptureService _courtOutputCaptureService;
     private readonly BackupSnapshotService _backupSnapshotService;
+    private readonly LocalBackupCatalogService _localBackupCatalogService;
     private readonly RestoreDrillService _restoreDrillService;
+    private readonly CloudBackupService _cloudBackupService;
     private readonly InstallationControlService _installationControlService;
+    private AppSettings? _currentSettings;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
     private string _licenseKey = string.Empty;
@@ -52,6 +57,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _filingPackExportRootPath = string.Empty;
     private string _courtOutputSourceFilePath = string.Empty;
     private string _backupRecoveryKey = string.Empty;
+    private string _localRestoreTargetPath = string.Empty;
+    private string _cloudBackupProviderPath = string.Empty;
+    private string _cloudRestoreTargetPath = string.Empty;
     private string _searchQuery = string.Empty;
     private DocumentType _selectedCourtOutputType = DocumentType.FilingReceipt;
     private MatterListItemViewModel? _selectedMatter;
@@ -59,7 +67,10 @@ public sealed class MainWindowViewModel : ObservableObject
     private DocumentType _selectedDocumentType = DocumentType.Unknown;
     private DocumentStatus _selectedDocumentStatus = DocumentStatus.Imported;
     private ScanInboxItemViewModel? _selectedScan;
+    private LocalBackupSnapshotViewModel? _selectedLocalBackupSnapshot;
+    private CloudBackupSnapshotViewModel? _selectedCloudBackupSnapshot;
     private bool _recoveryKeyConfirmed;
+    private bool _cloudBackupEnabled;
     private bool _isSetupComplete;
     private string _statusMessage = "Complete setup to create a local-first document vault.";
 
@@ -88,7 +99,9 @@ public sealed class MainWindowViewModel : ObservableObject
         _filingPackExportService = new FilingPackExportService(_matterRepository, _documentRepository, _vaultService);
         _courtOutputCaptureService = new CourtOutputCaptureService(_documentImportService);
         _backupSnapshotService = new BackupSnapshotService();
+        _localBackupCatalogService = new LocalBackupCatalogService();
         _restoreDrillService = new RestoreDrillService();
+        _cloudBackupService = new CloudBackupService();
         _installationControlService = new InstallationControlService();
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
         CreateMatterCommand = new AsyncRelayCommand(CreateMatterAsync, () => CanUseInstall);
@@ -101,6 +114,12 @@ public sealed class MainWindowViewModel : ObservableObject
         ExportFilingPackCommand = new AsyncRelayCommand(ExportFilingPackAsync, () => CanUseInstall && SelectedMatter is not null && Documents.Count > 0);
         CaptureCourtOutputCommand = new AsyncRelayCommand(CaptureCourtOutputAsync, () => CanUseInstall && SelectedMatter is not null);
         RunBackupCommand = new AsyncRelayCommand(RunBackupAsync, () => CanUseInstall);
+        RefreshLocalBackupsCommand = new AsyncRelayCommand(RefreshLocalBackupsAsync, () => CanUseInstall);
+        RestoreSelectedLocalBackupCommand = new AsyncRelayCommand(RestoreSelectedLocalBackupAsync, () => CanUseInstall && SelectedLocalBackupSnapshot is not null);
+        EnableCloudBackupCommand = new AsyncRelayCommand(EnableCloudBackupAsync, () => CanUseInstall);
+        UploadCloudBackupCommand = new AsyncRelayCommand(UploadCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled);
+        RefreshCloudBackupsCommand = new AsyncRelayCommand(RefreshCloudBackupsAsync, () => CanUseInstall && CloudBackupEnabled);
+        RestoreSelectedCloudBackupCommand = new AsyncRelayCommand(RestoreSelectedCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled && SelectedCloudBackupSnapshot is not null);
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -248,6 +267,24 @@ public sealed class MainWindowViewModel : ObservableObject
         set => SetProperty(ref _backupRecoveryKey, value);
     }
 
+    public string LocalRestoreTargetPath
+    {
+        get => _localRestoreTargetPath;
+        set => SetProperty(ref _localRestoreTargetPath, value);
+    }
+
+    public string CloudBackupProviderPath
+    {
+        get => _cloudBackupProviderPath;
+        set => SetProperty(ref _cloudBackupProviderPath, value);
+    }
+
+    public string CloudRestoreTargetPath
+    {
+        get => _cloudRestoreTargetPath;
+        set => SetProperty(ref _cloudRestoreTargetPath, value);
+    }
+
     public MatterListItemViewModel? SelectedMatter
     {
         get => _selectedMatter;
@@ -273,6 +310,30 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetProperty(ref _selectedScan, value))
             {
                 (ImportSelectedScanCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public LocalBackupSnapshotViewModel? SelectedLocalBackupSnapshot
+    {
+        get => _selectedLocalBackupSnapshot;
+        set
+        {
+            if (SetProperty(ref _selectedLocalBackupSnapshot, value))
+            {
+                (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public CloudBackupSnapshotViewModel? SelectedCloudBackupSnapshot
+    {
+        get => _selectedCloudBackupSnapshot;
+        set
+        {
+            if (SetProperty(ref _selectedCloudBackupSnapshot, value))
+            {
+                (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -314,6 +375,25 @@ public sealed class MainWindowViewModel : ObservableObject
         get => _recoveryKeyConfirmed;
         set => SetProperty(ref _recoveryKeyConfirmed, value);
     }
+
+    public bool CloudBackupEnabled
+    {
+        get => _cloudBackupEnabled;
+        private set
+        {
+            if (SetProperty(ref _cloudBackupEnabled, value))
+            {
+                OnPropertyChanged(nameof(CloudBackupStatusText));
+                (UploadCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (RefreshCloudBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public string CloudBackupStatusText => CloudBackupEnabled
+        ? "Cloud backup: enabled for local provider testing"
+        : "Cloud backup: disabled";
 
     public bool IsSetupComplete
     {
@@ -361,6 +441,18 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand RunBackupCommand { get; }
 
+    public ICommand RefreshLocalBackupsCommand { get; }
+
+    public ICommand RestoreSelectedLocalBackupCommand { get; }
+
+    public ICommand EnableCloudBackupCommand { get; }
+
+    public ICommand UploadCloudBackupCommand { get; }
+
+    public ICommand RefreshCloudBackupsCommand { get; }
+
+    public ICommand RestoreSelectedCloudBackupCommand { get; }
+
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
     public ObservableCollection<DocumentListItemViewModel> Documents { get; } = [];
@@ -370,6 +462,10 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<ScanInboxItemViewModel> ScanInbox { get; } = [];
 
     public ObservableCollection<DocumentSearchResultViewModel> SearchResults { get; } = [];
+
+    public ObservableCollection<LocalBackupSnapshotViewModel> LocalBackupSnapshots { get; } = [];
+
+    public ObservableCollection<CloudBackupSnapshotViewModel> CloudBackupSnapshots { get; } = [];
 
     public IReadOnlyList<DocumentType> DocumentTypeOptions { get; } = Enum.GetValues<DocumentType>();
 
@@ -420,6 +516,7 @@ public sealed class MainWindowViewModel : ObservableObject
             await _settingsStore.SaveAsync(ensuredSettings, CancellationToken.None);
         }
 
+        _currentSettings = ensuredSettings;
         FirmName = ensuredSettings.FirmName;
         LicenseKey = ensuredSettings.LicenseKey;
         DeviceNickname = ensuredSettings.DeviceNickname;
@@ -430,11 +527,17 @@ public sealed class MainWindowViewModel : ObservableObject
         ScanFolderPath = ensuredSettings.ScanFolderPath;
         BackupTargetPath = ensuredSettings.BackupTargetPath;
         FilingPackExportRootPath = ensuredSettings.BackupTargetPath;
+        LocalRestoreTargetPath = Path.Combine(ensuredSettings.BackupTargetPath, "local-restore-workspace");
+        CloudBackupProviderPath = DefaultCloudBackupProviderPath(ensuredSettings);
+        CloudRestoreTargetPath = Path.Combine(ensuredSettings.BackupTargetPath, "cloud-restore");
+        CloudBackupEnabled = ensuredSettings.CloudBackupEnabled;
         RecoveryKeyConfirmed = ensuredSettings.RecoveryKeyConfirmed;
         ApplyLicenseGate(ensuredSettings);
         IsSetupComplete = true;
         await ReloadMattersAsync();
         await ReloadScanInboxAsync();
+        await ReloadLocalBackupsAsync();
+        await ReloadCloudBackupsAsync();
     }
 
     public async Task CompleteSetupAsync()
@@ -474,14 +577,20 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         await _settingsStore.SaveAsync(settings, CancellationToken.None);
+        _currentSettings = settings;
         SetupRecoveryKey = string.Empty;
         InstallationId = settings.InstallationId.ToString("D");
         DeviceNickname = settings.DeviceNickname;
         LicenseStatus = settings.LicenseStatus;
+        LocalRestoreTargetPath = Path.Combine(settings.BackupTargetPath, "local-restore-workspace");
+        CloudBackupProviderPath = DefaultCloudBackupProviderPath(settings);
+        CloudRestoreTargetPath = Path.Combine(settings.BackupTargetPath, "cloud-restore");
+        CloudBackupEnabled = settings.CloudBackupEnabled;
         ApplyLicenseGate(settings);
         IsSetupComplete = true;
         await ReloadMattersAsync();
         await ReloadScanInboxAsync();
+        await ReloadLocalBackupsAsync();
     }
 
     public async Task CreateMatterAsync()
@@ -783,8 +892,212 @@ public sealed class MainWindowViewModel : ObservableObject
 
         StatusMessage = $"Backup created and restore drill verified {drill.Value.VerifiedFileCount:N0} file(s) at {snapshot.Value.BackupDirectory}.";
         BackupRecoveryKey = string.Empty;
+        await ReloadLocalBackupsAsync(Path.GetFileName(snapshot.Value.BackupDirectory));
     }
 
+    public async Task RefreshLocalBackupsAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        await ReloadLocalBackupsAsync();
+        StatusMessage = $"Local backup list refreshed: {LocalBackupSnapshots.Count:N0} snapshot(s).";
+    }
+
+    public async Task RestoreSelectedLocalBackupAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (SelectedLocalBackupSnapshot is null)
+        {
+            StatusMessage = "Select a local backup snapshot before restore drill.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BackupRecoveryKey))
+        {
+            StatusMessage = "Recovery key is required to verify a local backup restore.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(LocalRestoreTargetPath))
+        {
+            StatusMessage = "Local restore workspace folder is required.";
+            return;
+        }
+
+        var restoreWorkspace = Path.Combine(
+            LocalRestoreTargetPath,
+            SelectedLocalBackupSnapshot.SnapshotId);
+        var drill = await _restoreDrillService.RunAsync(
+            new RestoreDrillRequest(
+                SelectedLocalBackupSnapshot.BackupDirectory,
+                restoreWorkspace,
+                BackupRecoveryKey),
+            CancellationToken.None);
+        if (!drill.Succeeded || drill.Value is null)
+        {
+            StatusMessage = drill.Error ?? "Local backup restore drill failed.";
+            return;
+        }
+
+        BackupRecoveryKey = string.Empty;
+        StatusMessage = $"Local backup restore workspace verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}.";
+    }
+
+    public async Task EnableCloudBackupAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (_currentSettings is null)
+        {
+            StatusMessage = "Complete setup before enabling cloud backup.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(CloudBackupProviderPath))
+        {
+            StatusMessage = "Cloud backup provider folder is required.";
+            return;
+        }
+
+        var updatedSettings = _currentSettings with
+        {
+            CloudBackupEnabled = true,
+            CloudBackupProviderPath = CloudBackupProviderPath.Trim()
+        };
+        await _settingsStore.SaveAsync(updatedSettings, CancellationToken.None);
+        _currentSettings = updatedSettings;
+        CloudBackupEnabled = true;
+        StatusMessage = "Cloud backup enabled for local provider testing. Encrypted packages will be written to the configured provider folder.";
+        await ReloadCloudBackupsAsync();
+    }
+
+    public async Task UploadCloudBackupAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (!CanUseCloudBackup())
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BackupRecoveryKey))
+        {
+            StatusMessage = "Recovery key is required before uploading an encrypted cloud backup.";
+            return;
+        }
+
+        var snapshot = await _backupSnapshotService.CreateSnapshotAsync(
+            new BackupSnapshotRequest(VaultPath, _databasePath, BackupTargetPath, BackupRecoveryKey),
+            CancellationToken.None);
+        if (!snapshot.Succeeded || snapshot.Value is null)
+        {
+            StatusMessage = snapshot.Error ?? "Local snapshot failed before cloud upload.";
+            return;
+        }
+
+        var provider = new LocalFilesystemCloudBackupProvider(CloudBackupProviderPath);
+        var upload = await _cloudBackupService.UploadSnapshotAsync(
+            new CloudBackupUploadRequest(_currentSettings!, snapshot.Value.BackupDirectory, BackupRecoveryKey),
+            provider,
+            CancellationToken.None);
+        if (!upload.Succeeded || upload.Value is null)
+        {
+            StatusMessage = upload.Error ?? "Cloud backup upload failed.";
+            return;
+        }
+
+        BackupRecoveryKey = string.Empty;
+        StatusMessage = $"Cloud backup uploaded encrypted snapshot {upload.Value.Metadata.SnapshotId}.";
+        await ReloadCloudBackupsAsync(upload.Value.Metadata.SnapshotId);
+    }
+
+    public async Task RefreshCloudBackupsAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (!CanUseCloudBackup())
+        {
+            return;
+        }
+
+        await ReloadCloudBackupsAsync();
+        StatusMessage = $"Cloud backup list refreshed: {CloudBackupSnapshots.Count:N0} snapshot(s).";
+    }
+
+    public async Task RestoreSelectedCloudBackupAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (!CanUseCloudBackup())
+        {
+            return;
+        }
+
+        if (SelectedCloudBackupSnapshot is null)
+        {
+            StatusMessage = "Select a cloud backup snapshot before restore drill.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BackupRecoveryKey))
+        {
+            StatusMessage = "Recovery key is required to download and verify a cloud backup.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(CloudRestoreTargetPath))
+        {
+            StatusMessage = "Cloud restore target folder is required.";
+            return;
+        }
+
+        var provider = new LocalFilesystemCloudBackupProvider(CloudBackupProviderPath);
+        var download = await _cloudBackupService.DownloadSnapshotAsync(
+            new CloudBackupDownloadRequest(
+                _currentSettings!,
+                SelectedCloudBackupSnapshot.SnapshotId,
+                BackupRecoveryKey,
+                CloudRestoreTargetPath),
+            provider,
+            CancellationToken.None);
+        if (!download.Succeeded || download.Value is null)
+        {
+            StatusMessage = download.Error ?? "Cloud backup download failed.";
+            return;
+        }
+
+        var restoreTarget = Path.Combine(download.Value.RestoreTargetPath, "restore-drill");
+        var drill = await _restoreDrillService.RunAsync(
+            new RestoreDrillRequest(download.Value.RestoreTargetPath, restoreTarget, BackupRecoveryKey),
+            CancellationToken.None);
+        if (!drill.Succeeded || drill.Value is null)
+        {
+            StatusMessage = drill.Error ?? "Cloud backup restore drill failed.";
+            return;
+        }
+
+        BackupRecoveryKey = string.Empty;
+        StatusMessage = $"Cloud backup restore drill verified {drill.Value.VerifiedFileCount:N0} file(s) from snapshot {SelectedCloudBackupSnapshot.SnapshotId}.";
+    }
 
     private async Task ReloadMattersAsync()
     {
@@ -857,6 +1170,59 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
+    private async Task ReloadLocalBackupsAsync(string? selectedSnapshotId = null)
+    {
+        var previousSnapshotId = selectedSnapshotId ?? SelectedLocalBackupSnapshot?.SnapshotId;
+        LocalBackupSnapshots.Clear();
+        if (string.IsNullOrWhiteSpace(BackupTargetPath))
+        {
+            return;
+        }
+
+        var snapshots = await _localBackupCatalogService.ListSnapshotsAsync(BackupTargetPath, CancellationToken.None);
+        foreach (var snapshot in snapshots)
+        {
+            LocalBackupSnapshots.Add(new LocalBackupSnapshotViewModel(snapshot));
+        }
+
+        if (!string.IsNullOrWhiteSpace(previousSnapshotId))
+        {
+            SelectedLocalBackupSnapshot = LocalBackupSnapshots.FirstOrDefault(snapshot => snapshot.SnapshotId == previousSnapshotId);
+        }
+        else
+        {
+            SelectedLocalBackupSnapshot = LocalBackupSnapshots.FirstOrDefault();
+        }
+
+        (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private async Task ReloadCloudBackupsAsync(string? selectedSnapshotId = null)
+    {
+        var previousSnapshotId = selectedSnapshotId ?? SelectedCloudBackupSnapshot?.SnapshotId;
+        CloudBackupSnapshots.Clear();
+        if (_currentSettings is null || !CloudBackupEnabled || string.IsNullOrWhiteSpace(CloudBackupProviderPath))
+        {
+            return;
+        }
+
+        var provider = new LocalFilesystemCloudBackupProvider(CloudBackupProviderPath);
+        var snapshots = await provider.ListSnapshotsAsync(_currentSettings.InstallationId, CancellationToken.None);
+        foreach (var snapshot in snapshots)
+        {
+            CloudBackupSnapshots.Add(new CloudBackupSnapshotViewModel(snapshot));
+        }
+
+        if (!string.IsNullOrWhiteSpace(previousSnapshotId))
+        {
+            SelectedCloudBackupSnapshot = CloudBackupSnapshots.FirstOrDefault(snapshot => snapshot.SnapshotId == previousSnapshotId);
+        }
+        else
+        {
+            SelectedCloudBackupSnapshot = CloudBackupSnapshots.FirstOrDefault();
+        }
+    }
+
     private void ApplyLicenseGate(AppSettings settings)
     {
         var gate = _installationControlService.EvaluateLocalAccess(settings);
@@ -878,6 +1244,12 @@ public sealed class MainWindowViewModel : ObservableObject
         (ExportFilingPackCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (CaptureCourtOutputCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RunBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (RefreshLocalBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (EnableCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (UploadCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (RefreshCloudBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private bool CanUseLicensedFeatures()
@@ -895,5 +1267,35 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         return true;
+    }
+
+    private bool CanUseCloudBackup()
+    {
+        if (_currentSettings is null)
+        {
+            StatusMessage = "Complete setup before using cloud backup.";
+            return false;
+        }
+
+        if (!CloudBackupEnabled)
+        {
+            StatusMessage = "Enable cloud backup before uploading or restoring cloud snapshots.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(CloudBackupProviderPath))
+        {
+            StatusMessage = "Cloud backup provider folder is required.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string DefaultCloudBackupProviderPath(AppSettings settings)
+    {
+        return string.IsNullOrWhiteSpace(settings.CloudBackupProviderPath)
+            ? Path.Combine(settings.BackupTargetPath, "cloud-provider")
+            : settings.CloudBackupProviderPath;
     }
 }

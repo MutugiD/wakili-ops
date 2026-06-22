@@ -4,6 +4,8 @@ Wakili Ops is a multi-product legal operations workspace for Kenyan advocates an
 
 ## Product Phases
 
+For the detailed phase-by-phase delivery map, see [Wakili Ops Product Phases](PHASES.md).
+
 ### Phase 1: Windows Legal Document Vault
 
 Path:
@@ -112,6 +114,7 @@ wakili-ops-documentation/
 Start with:
 
 - [Wakili Ops Documentation](wakili-ops-documentation/README.md)
+- [Wakili Ops Product Phases](PHASES.md)
 - [Windows Legal Document Vault V1 Handbook](windows-legal-document-vault/v1/documentation/README.md)
 
 ## Local Development

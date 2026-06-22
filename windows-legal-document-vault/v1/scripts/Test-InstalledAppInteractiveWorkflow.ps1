@@ -249,10 +249,13 @@ $documentsRoot = Join-Path $testRootFull "online-documents"
 $vaultPath = Join-Path $testRootFull "Vault"
 $scanPath = Join-Path $testRootFull "WatchedScan"
 $backupPath = Join-Path $testRootFull "BackupTarget"
+$localRestorePath = Join-Path $testRootFull "LocalRestore"
+$cloudProviderPath = Join-Path $testRootFull "CloudProvider"
+$cloudRestorePath = Join-Path $testRootFull "CloudRestore"
 $filingExportPath = Join-Path $testRootFull "FilingExports"
 $appDataPath = Join-Path $testRootFull "AppData"
 
-New-Item -ItemType Directory -Path $vaultPath, $scanPath, $backupPath, $filingExportPath, $appDataPath -Force | Out-Null
+New-Item -ItemType Directory -Path $vaultPath, $scanPath, $backupPath, $localRestorePath, $cloudProviderPath, $cloudRestorePath, $filingExportPath, $appDataPath -Force | Out-Null
 Download-OnlineDocuments -DocumentRoot $documentsRoot
 Install-PackageIfNeeded
 
@@ -347,6 +350,40 @@ try {
     if ($backupManifests.Count -eq 0) {
         throw "Backup manifest was not created."
     }
+    Invoke-Element -Window $window -AutomationId "RefreshLocalBackupsButton"
+    Find-TextContaining -Window $window -Text "Local backup list refreshed" -TimeoutSeconds 30 | Out-Null
+    Select-FirstListItem -Window $window -AutomationId "LocalBackupsList" | Out-Null
+    Set-ElementValue -Window $window -AutomationId "LocalRestoreTargetPath" -Value $localRestorePath
+    Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
+    Invoke-Element -Window $window -AutomationId "RestoreSelectedLocalBackupButton"
+    Find-TextContaining -Window $window -Text "Local backup restore workspace verified" -TimeoutSeconds 60 | Out-Null
+    $localRestoreDatabaseBackups = @(Get-ChildItem -Path $localRestorePath -Recurse -Filter "wakili-dms.db.backup")
+    if ($localRestoreDatabaseBackups.Count -eq 0) {
+        throw "Local restore workspace encrypted database backup was not created."
+    }
+
+    Set-ElementValue -Window $window -AutomationId "CloudBackupProviderPath" -Value $cloudProviderPath
+    Invoke-Element -Window $window -AutomationId "EnableCloudBackupButton"
+    Find-TextContaining -Window $window -Text "Cloud backup enabled" -TimeoutSeconds 30 | Out-Null
+    Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
+    Invoke-Element -Window $window -AutomationId "UploadCloudBackupButton"
+    Find-TextContaining -Window $window -Text "Cloud backup uploaded encrypted snapshot" -TimeoutSeconds 60 | Out-Null
+    Invoke-Element -Window $window -AutomationId "RefreshCloudBackupsButton"
+    Find-TextContaining -Window $window -Text "Cloud backup list refreshed" -TimeoutSeconds 30 | Out-Null
+    Select-FirstListItem -Window $window -AutomationId "CloudBackupsList" | Out-Null
+    Set-ElementValue -Window $window -AutomationId "CloudRestoreTargetPath" -Value $cloudRestorePath
+    Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
+    Invoke-Element -Window $window -AutomationId "RestoreSelectedCloudBackupButton"
+    Find-TextContaining -Window $window -Text "Cloud backup restore drill verified" -TimeoutSeconds 60 | Out-Null
+    $cloudPackages = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
+    if ($cloudPackages.Count -eq 0) {
+        throw "Cloud backup package was not created."
+    }
+
+    $packageText = Get-Content -LiteralPath $cloudPackages[0].FullName -Raw
+    if ($packageText.Contains("Republic v Online Sample Documents") -or $packageText.Contains("sample-online-pleading.docx")) {
+        throw "Cloud backup package exposed matter or document details in plain text."
+    }
 
     $settingsPath = if ($UseDefaultUserAppData) {
         Join-Path $env:LOCALAPPDATA "WakiliDms\settings.json"
@@ -366,6 +403,8 @@ try {
         OnlineDocuments = $documentsRoot
         FilingPackManifestCount = $filingManifests.Count
         BackupManifestCount = $backupManifests.Count
+        LocalRestoreDatabaseBackupCount = $localRestoreDatabaseBackups.Count
+        CloudBackupPackageCount = $cloudPackages.Count
         UsedDefaultUserAppData = [bool]$UseDefaultUserAppData
     } | ConvertTo-Json -Depth 4
 }

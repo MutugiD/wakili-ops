@@ -20,7 +20,7 @@ using WakiliDms.Infrastructure.Vault;
 var tests = new (string Name, Action Test)[]
 {
     ("Setup validation accepts complete local-first settings", SetupValidationAcceptsCompleteSettings),
-    ("Setup validation rejects cloud backup in V1", SetupValidationRejectsCloudBackup),
+    ("Setup validation rejects cloud backup during first-run setup", SetupValidationRejectsCloudBackupDuringFirstRunSetup),
     ("Matter creation trims required name", MatterCreationTrimsName),
     ("Filed and served document statuses are immutable", FiledAndServedStatusesAreImmutable),
     ("JSON settings store saves and loads setup state", JsonSettingsStoreSavesAndLoadsSetupState),
@@ -46,6 +46,7 @@ var tests = new (string Name, Action Test)[]
     ("Court output capture rejects non-output document type", CourtOutputCaptureRejectsNonOutputDocumentType),
     ("Backup snapshot copies encrypted vault and database with manifest", BackupSnapshotCopiesEncryptedVaultAndDatabaseWithManifest),
     ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles),
+    ("Local backup catalog lists restorable snapshots", LocalBackupCatalogListsRestorableSnapshots),
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
     ("Restore drill rejects tampered backup hashes", RestoreDrillRejectsTamperedBackupHashes),
@@ -112,12 +113,12 @@ static void SetupValidationAcceptsCompleteSettings()
     Assert(result.Succeeded, result.Error ?? "Expected settings to be valid.");
 }
 
-static void SetupValidationRejectsCloudBackup()
+static void SetupValidationRejectsCloudBackupDuringFirstRunSetup()
 {
     var settings = ValidSettings() with { CloudBackupEnabled = true };
     var result = SetupValidator.Validate(settings);
 
-    Assert(!result.Succeeded, "Cloud backup must be rejected in V1.");
+    Assert(!result.Succeeded, "Cloud backup must be rejected during first-run setup.");
 }
 
 static void MatterCreationTrimsName()
@@ -139,7 +140,11 @@ static void JsonSettingsStoreSavesAndLoadsSetupState()
     var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
     var settingsPath = Path.Combine(tempRoot, "settings.json");
     var store = new JsonSettingsStore(settingsPath);
-    var settings = ValidSettings() with { SetupCompletedAt = DateTimeOffset.UtcNow };
+    var settings = ValidSettings() with
+    {
+        SetupCompletedAt = DateTimeOffset.UtcNow,
+        CloudBackupProviderPath = Path.Combine(tempRoot, "cloud-provider")
+    };
 
     store.SaveAsync(settings, CancellationToken.None).GetAwaiter().GetResult();
     var loaded = store.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -149,6 +154,7 @@ static void JsonSettingsStoreSavesAndLoadsSetupState()
         Assert(loaded is not null, "Settings should load after save.");
         Assert(loaded!.FirmName == settings.FirmName, "Firm name should round trip.");
         Assert(loaded.SetupCompletedAt is not null, "Setup completion timestamp should round trip.");
+        Assert(loaded.CloudBackupProviderPath == settings.CloudBackupProviderPath, "Cloud backup provider path should round trip.");
     }
     finally
     {
@@ -1185,6 +1191,47 @@ static void RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles()
         Assert(File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db.backup")), "Restore drill should copy encrypted database artifact.");
         Assert(!File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db")), "Restore drill should not leave a plain database file.");
         Assert(Directory.GetFiles(Path.Combine(restoreTarget, "vault", "objects"), "*.json").Length == 1, "Restore drill should copy vault object files.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void LocalBackupCatalogListsRestorableSnapshots()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var sourcePath = Path.Combine(tempRoot, "draft-ruling.docx");
+    var recoveryKey = "local catalog recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        CreateMinimalDocx(sourcePath, "Local backup catalog fixture content.");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        var invalidDirectory = Path.Combine(backupTarget, "invalid-snapshot");
+        Directory.CreateDirectory(invalidDirectory);
+        File.WriteAllText(Path.Combine(invalidDirectory, "backup-manifest.json"), "{not-json");
+
+        var snapshots = new LocalBackupCatalogService().ListSnapshotsAsync(backupTarget, CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(snapshots.Count == 1, "Catalog should list only valid local backup snapshots.");
+        Assert(snapshots[0].BackupDirectory == Path.GetFullPath(snapshot.Value!.BackupDirectory), "Catalog should return the backup directory.");
+        Assert(snapshots[0].SnapshotId == Path.GetFileName(snapshot.Value.BackupDirectory), "Catalog snapshot ID should match backup folder name.");
+        Assert(snapshots[0].FileCount == snapshot.Value.BackedUpFileCount, "Catalog should expose backed-up file count.");
+        Assert(snapshots[0].ByteLength == snapshot.Value.BackedUpByteLength, "Catalog should expose backed-up byte length.");
     }
     finally
     {

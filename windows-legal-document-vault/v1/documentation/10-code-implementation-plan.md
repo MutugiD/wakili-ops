@@ -77,6 +77,7 @@ Current implemented behavior:
 - Recovery-key encrypted cloud backup package creation.
 - Local filesystem cloud-backup provider for adapter testing.
 - Cloud backup entitlement, metadata redaction, download, and restore-drill tests.
+- User-facing Backup Center cloud controls backed by the local filesystem provider.
 - Console test harness with first baseline tests.
 - App startup smoke test.
 
@@ -470,8 +471,39 @@ Verification:
 
 - `dotnet run --project tests/WakiliDms.Tests/WakiliDms.Tests.csproj --configuration Release`
 
+## Completed Slice: User-Facing Backup Center Cloud Controls
+
+Implemented:
+
+- Cloud backup provider path persisted in app settings.
+- Backup Center controls for local-provider cloud backup enablement.
+- Encrypted cloud upload from a freshly created local backup snapshot.
+- Cloud snapshot list refresh.
+- Selected cloud snapshot download into a restore target.
+- Restore drill verification from the cloud-downloaded snapshot.
+- Installed-app interactive workflow now verifies local backup, cloud upload, encrypted package creation, snapshot selection, and cloud restore drill.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
+## Completed Slice: Local Backup Restore Workspace Browser
+
+Implemented:
+
+- `LocalBackupCatalogService` for listing valid local backup snapshots from the configured backup target.
+- Local backup snapshot view model and right-panel list in the Windows app.
+- Backup Center controls to refresh local backups and run a selected local restore workspace.
+- Restore workspace output is written under the configured local restore folder by snapshot ID.
+- Installed-app interactive workflow now verifies local snapshot refresh, snapshot selection, restore workspace creation, and restored encrypted database artifact presence.
+
+Verification:
+
+- `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Local backup catalog"`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
-1. Hosted admin/payment entitlement integration.
-2. User-facing Backup Center cloud controls.
-3. Production cloud provider adapter.
+1. Cross-machine cloud restore wizard.
+2. Production cloud provider adapter after provider choice.
+3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

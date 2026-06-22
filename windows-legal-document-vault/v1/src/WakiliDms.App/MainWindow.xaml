@@ -293,6 +293,60 @@
                             Command="{Binding RunBackupCommand}"
                             HorizontalAlignment="Left"
                             Padding="18,8" />
+                    <Button Content="Refresh local backups"
+                            AutomationProperties.AutomationId="RefreshLocalBackupsButton"
+                            Command="{Binding RefreshLocalBackupsCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
+                    <TextBlock Text="Local restore workspace folder" Margin="0,14,0,4" />
+                    <TextBox AutomationProperties.AutomationId="LocalRestoreTargetPath"
+                             Text="{Binding LocalRestoreTargetPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Content="Run selected local restore workspace"
+                            AutomationProperties.AutomationId="RestoreSelectedLocalBackupButton"
+                            Command="{Binding RestoreSelectedLocalBackupCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
+
+                    <TextBlock Text="Cloud backup"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0,28,0,8" />
+                    <TextBlock Text="{Binding CloudBackupStatusText}"
+                               Foreground="#374151"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+                    <TextBlock Text="Local provider folder" Margin="0,0,0,4" />
+                    <TextBox AutomationProperties.AutomationId="CloudBackupProviderPath"
+                             Text="{Binding CloudBackupProviderPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Content="Enable cloud backup"
+                            AutomationProperties.AutomationId="EnableCloudBackupButton"
+                            Command="{Binding EnableCloudBackupCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
+                    <Button Content="Upload encrypted cloud backup"
+                            AutomationProperties.AutomationId="UploadCloudBackupButton"
+                            Command="{Binding UploadCloudBackupCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
+                    <Button Content="Refresh cloud backups"
+                            AutomationProperties.AutomationId="RefreshCloudBackupsButton"
+                            Command="{Binding RefreshCloudBackupsCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
+                    <TextBlock Text="Cloud restore target folder" Margin="0,14,0,4" />
+                    <TextBox AutomationProperties.AutomationId="CloudRestoreTargetPath"
+                             Text="{Binding CloudRestoreTargetPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Content="Run selected cloud restore drill"
+                            AutomationProperties.AutomationId="RestoreSelectedCloudBackupButton"
+                            Command="{Binding RestoreSelectedCloudBackupCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
                 </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -445,6 +499,62 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <TextBlock Text="Local backups"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   Margin="0,20,0,8" />
+                        <ListBox AutomationProperties.AutomationId="LocalBackupsList"
+                                 ItemsSource="{Binding LocalBackupSnapshots}"
+                                 SelectedItem="{Binding SelectedLocalBackupSnapshot}"
+                                 BorderThickness="0"
+                                 MaxHeight="180">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#E5E7EB"
+                                            BorderThickness="1"
+                                            Padding="10"
+                                            Margin="0,0,0,8"
+                                            CornerRadius="4">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding SnapshotId}" FontWeight="SemiBold" Foreground="#111827" />
+                                            <TextBlock Text="{Binding CreatedAt}" Foreground="#374151" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding FileCount}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding ByteLength}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <TextBlock Text="Cloud backups"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   Margin="0,20,0,8" />
+                        <ListBox AutomationProperties.AutomationId="CloudBackupsList"
+                                 ItemsSource="{Binding CloudBackupSnapshots}"
+                                 SelectedItem="{Binding SelectedCloudBackupSnapshot}"
+                                 BorderThickness="0"
+                                 MaxHeight="180">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#E5E7EB"
+                                            BorderThickness="1"
+                                            Padding="10"
+                                            Margin="0,0,0,8"
+                                            CornerRadius="4">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding SnapshotId}" FontWeight="SemiBold" Foreground="#111827" />
+                                            <TextBlock Text="{Binding CreatedAt}" Foreground="#374151" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding EncryptedByteLength}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding Status}" Foreground="#6B7280" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

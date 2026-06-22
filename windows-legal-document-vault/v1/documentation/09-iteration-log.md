@@ -31,14 +31,16 @@ This log tracks V1 planning and implementation progress.
 | V1 packaging | Windows EXE package/install/run | Complete | Product-named `WindowsLegalDocumentVault.exe`, package build, local install/uninstall scripts, installed executable smoke, and Windows installation guide. |
 | V1 interactive E2E | Installed app workflow with online documents | Complete | Added WPF automation IDs, scrollable Home workflow, isolated app-data test overrides, online DOCX/PDF downloads, and installed-app UI automation from setup through backup/restore drill. |
 | 13 | Optional cloud-backup provider adapter | Complete | Provider interface, recovery-key encrypted cloud package, redacted metadata, local filesystem provider, download/extract flow, and restore-drill validation. |
-| 14 | Hosted admin/payment entitlement integration | Planned | Hosted entitlement check, payment status, cloud-backup feature activation, and backup-health reporting. |
+| 14 | Hosted admin/payment entitlement integration | Skipped | Explicitly skipped for now. Hosted payment, entitlement sync, and backup-health reporting remain future work. |
+| 15 | User-facing Backup Center cloud controls | Complete | Local-provider cloud backup enablement, encrypted cloud upload, snapshot list refresh, selected snapshot download, and cloud restore drill in the Windows app. |
+| 16 | Local backup restore workspace browser | Complete | Local backup catalog, snapshot list refresh, selected local backup restore workspace, and installed-app UI verification. |
 
 ## Deferred From V1
 
 | Item | Reason |
 | --- | --- |
 | Direct Judiciary portal automation | Legal, operational, and authentication risk. |
-| Cloud backup upload | Future opt-in provider after local backup and admin licensing are reliable. |
+| Production cloud backup upload | Future opt-in provider after local backup and admin licensing are reliable. |
 | Direct TWAIN/WIA scanner control | Watched folder support is simpler and more compatible for V1. |
 | Local Matter RAG Connector | Depends on trustworthy document vault and OCR/search foundation. |
 | Wakili-Mkononi Matter AI Integration | Depends on Local Matter RAG Connector. |

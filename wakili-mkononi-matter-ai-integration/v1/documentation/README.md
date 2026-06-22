@@ -1,6 +1,10 @@
 # Wakili-Mkononi Matter AI Integration V1
 
-This folder is the V1 documentation scaffold for the Wakili-Mkononi Matter AI Integration.
+This folder is the V1 documentation pack for the Wakili-Mkononi Matter AI Integration.
+
+Start with:
+
+- [Phase 3 Product Plan](01-phase-3-product-plan.md)
 
 ## Purpose
 
@@ -34,4 +38,3 @@ wakili-mkononi-matter-ai-integration/v1/
 - No automatic legal filing.
 - No generated output marked as filed or served.
 - No access to unrelated matters.
-

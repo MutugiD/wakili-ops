@@ -176,11 +176,40 @@ Complete in this slice:
 - Restore drill compatibility after cloud download.
 - Tests proving entitlement is required.
 - Tests proving cloud metadata and package bytes do not expose matter names, party names, document filenames, or document text.
+- Backup Center controls in the Windows app for local-provider testing:
+  - Enable cloud backup after setup.
+  - Upload encrypted cloud backup.
+  - Refresh cloud backup snapshots.
+  - Download selected snapshot and run restore drill.
 
 Still pending:
 
-- User-facing Backup Center controls for enabling cloud backup.
 - Hosted admin/payment entitlement check.
 - Real cloud/vendor provider.
 - Upload retry queue.
 - Cross-machine restore wizard.
+
+Hosted admin/payment entitlement integration was intentionally skipped after the adapter foundation. Current user-facing controls rely on local app settings and the local filesystem provider so backup behavior can be tested end to end without payment infrastructure.
+
+## Local Provider Backup Center Flow
+
+The current Windows app flow is:
+
+1. Complete first-run setup.
+2. Enter a local provider folder under `Cloud backup`.
+3. Click `Enable cloud backup`.
+4. Enter the recovery key in the Backup Center recovery key field.
+5. Click `Upload encrypted cloud backup`.
+6. Click `Refresh cloud backups`.
+7. Select a cloud snapshot.
+8. Enter a cloud restore target folder.
+9. Enter the recovery key again.
+10. Click `Run selected cloud restore drill`.
+
+Expected result:
+
+- A normal local backup snapshot is created first.
+- A recovery-key encrypted cloud package is written to the local provider folder.
+- The provider metadata contains only installation/snapshot metadata.
+- The selected snapshot downloads into the restore target.
+- Restore drill verifies checksums and decryptability.

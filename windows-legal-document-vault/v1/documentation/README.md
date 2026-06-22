@@ -46,6 +46,7 @@ The Local Matter RAG Connector and Wakili-Mkononi Matter AI Integration remain f
 
 ## Documentation Map
 
+- [16-phase-1-delivery-plan.md](16-phase-1-delivery-plan.md)
 - [01-overview-and-scope.md](01-overview-and-scope.md)
 - [02-technical-architecture.md](02-technical-architecture.md)
 - [03-module-breakdown.md](03-module-breakdown.md)

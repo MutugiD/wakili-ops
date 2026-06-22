@@ -253,3 +253,44 @@ Acceptance tests:
 - Uploaded package bytes do not expose local backup contents in plain text.
 - Downloaded package can be decrypted with the recovery key and verified by restore drill.
 - Download with the wrong recovery key fails.
+
+## Slice 15: User-Facing Backup Center Cloud Controls
+
+Goal:
+
+- Let the Windows app user enable the local-provider cloud backup option, upload an encrypted cloud backup package, list cloud snapshots, and verify a selected cloud snapshot.
+
+Automated tests:
+
+- Cloud backup upload requires entitlement.
+- Cloud backup metadata is redacted.
+- Cloud backup package does not expose document or matter details in plain text.
+- Downloaded cloud snapshot can pass restore drill.
+
+Manual verification:
+
+- User enables cloud backup against a local provider folder.
+- User uploads an encrypted cloud package.
+- User refreshes cloud snapshots.
+- User selects a snapshot and verifies restore.
+
+## Slice 16: Local Backup Restore Workspace Browser
+
+Goal:
+
+- Let the Windows app user see local backup snapshots and verify a selected backup into a restore workspace without overwriting the live vault.
+
+Automated tests:
+
+- Local backup catalog lists valid snapshots.
+- Invalid backup folders are ignored.
+- Restore drill verifies selected backup files by hash.
+- Installed-app workflow refreshes local backups, selects a snapshot, and verifies a local restore workspace.
+
+Manual verification:
+
+- User runs a backup.
+- User refreshes the local backup list.
+- User selects a backup snapshot.
+- User enters a restore workspace folder.
+- User runs selected local restore workspace and sees verification status.
