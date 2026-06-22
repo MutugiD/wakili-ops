@@ -294,3 +294,23 @@ Manual verification:
 - User selects a backup snapshot.
 - User enters a restore workspace folder.
 - User runs selected local restore workspace and sees verification status.
+
+## Slice 17: Cross-Machine Backup Restore Verification
+
+Goal:
+
+- Let a user verify a backup folder copied from another Windows machine without requiring it to live under the current machine's configured backup target.
+
+Automated tests:
+
+- Backup can be copied to an external folder and verified by restore drill.
+- Original backup target can be absent during verification.
+- Installed-app workflow verifies an externally copied backup through the UI.
+
+Manual verification:
+
+- Copy a backup snapshot folder from another machine or external drive.
+- Paste the copied backup folder path into the external backup field.
+- Choose a restore workspace folder.
+- Enter the recovery key.
+- Run external backup verification and confirm restored encrypted artifacts are created.

@@ -250,12 +250,14 @@ $vaultPath = Join-Path $testRootFull "Vault"
 $scanPath = Join-Path $testRootFull "WatchedScan"
 $backupPath = Join-Path $testRootFull "BackupTarget"
 $localRestorePath = Join-Path $testRootFull "LocalRestore"
+$externalBackupPath = Join-Path $testRootFull "ExternalMachineBackup"
+$externalRestorePath = Join-Path $testRootFull "ExternalRestore"
 $cloudProviderPath = Join-Path $testRootFull "CloudProvider"
 $cloudRestorePath = Join-Path $testRootFull "CloudRestore"
 $filingExportPath = Join-Path $testRootFull "FilingExports"
 $appDataPath = Join-Path $testRootFull "AppData"
 
-New-Item -ItemType Directory -Path $vaultPath, $scanPath, $backupPath, $localRestorePath, $cloudProviderPath, $cloudRestorePath, $filingExportPath, $appDataPath -Force | Out-Null
+New-Item -ItemType Directory -Path $vaultPath, $scanPath, $backupPath, $localRestorePath, $externalBackupPath, $externalRestorePath, $cloudProviderPath, $cloudRestorePath, $filingExportPath, $appDataPath -Force | Out-Null
 Download-OnlineDocuments -DocumentRoot $documentsRoot
 Install-PackageIfNeeded
 
@@ -361,6 +363,17 @@ try {
     if ($localRestoreDatabaseBackups.Count -eq 0) {
         throw "Local restore workspace encrypted database backup was not created."
     }
+    $sourceBackupDirectory = Split-Path -Parent $backupManifests[0].FullName
+    Copy-Item -Path (Join-Path $sourceBackupDirectory "*") -Destination $externalBackupPath -Recurse -Force
+    Set-ElementValue -Window $window -AutomationId "ExternalBackupDirectoryPath" -Value $externalBackupPath
+    Set-ElementValue -Window $window -AutomationId "ExternalRestoreTargetPath" -Value $externalRestorePath
+    Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
+    Invoke-Element -Window $window -AutomationId "VerifyExternalBackupButton"
+    Find-TextContaining -Window $window -Text "External backup restore verified" -TimeoutSeconds 60 | Out-Null
+    $externalRestoreDatabaseBackups = @(Get-ChildItem -Path $externalRestorePath -Recurse -Filter "wakili-dms.db.backup")
+    if ($externalRestoreDatabaseBackups.Count -eq 0) {
+        throw "External restore workspace encrypted database backup was not created."
+    }
 
     Set-ElementValue -Window $window -AutomationId "CloudBackupProviderPath" -Value $cloudProviderPath
     Invoke-Element -Window $window -AutomationId "EnableCloudBackupButton"
@@ -404,6 +417,7 @@ try {
         FilingPackManifestCount = $filingManifests.Count
         BackupManifestCount = $backupManifests.Count
         LocalRestoreDatabaseBackupCount = $localRestoreDatabaseBackups.Count
+        ExternalRestoreDatabaseBackupCount = $externalRestoreDatabaseBackups.Count
         CloudBackupPackageCount = $cloudPackages.Count
         UsedDefaultUserAppData = [bool]$UseDefaultUserAppData
     } | ConvertTo-Json -Depth 4

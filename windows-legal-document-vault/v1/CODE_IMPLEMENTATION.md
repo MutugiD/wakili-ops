@@ -90,6 +90,8 @@ Completed:
 - Installed app interactive E2E verifies local backup, encrypted cloud upload, snapshot selection, and cloud restore drill.
 - Local backup catalog and restore workspace browser.
 - Installed app interactive E2E verifies local backup list refresh, selected local restore workspace, and restored encrypted database artifact creation.
+- Cross-machine backup verification fields and command for copied backup folders.
+- Installed app interactive E2E verifies copied external backup restore into a separate workspace.
 
 ## SDK Requirement
 
@@ -122,3 +124,4 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 15. Slice 14: hosted admin/payment entitlement integration. Skipped for now.
 16. Slice 15: user-facing Backup Center cloud controls.
 17. Slice 16: local backup restore workspace browser.
+18. Slice 17: cross-machine backup restore verification.

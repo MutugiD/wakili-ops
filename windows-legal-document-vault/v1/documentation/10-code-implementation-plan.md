@@ -502,8 +502,23 @@ Verification:
 - `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Local backup catalog"`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Cross-Machine Backup Restore Verification
+
+Implemented:
+
+- External backup folder path and external restore workspace fields in the Windows app.
+- Restore verification command for backups copied from another machine or drive.
+- Restore drill reuse so copied backups get the same manifest, hash, and recovery-key checks as local backups.
+- Core test proving a copied backup can verify after the original backup target is removed.
+- Installed-app interactive workflow now copies a real backup to an external folder and verifies it through the UI.
+
+Verification:
+
+- `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "copied from another machine"`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
-1. Cross-machine cloud restore wizard.
-2. Production cloud provider adapter after provider choice.
+1. Production cloud provider adapter after provider choice.
+2. Restore handoff report for support and cross-machine recovery.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

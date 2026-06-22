@@ -34,6 +34,7 @@ This log tracks V1 planning and implementation progress.
 | 14 | Hosted admin/payment entitlement integration | Skipped | Explicitly skipped for now. Hosted payment, entitlement sync, and backup-health reporting remain future work. |
 | 15 | User-facing Backup Center cloud controls | Complete | Local-provider cloud backup enablement, encrypted cloud upload, snapshot list refresh, selected snapshot download, and cloud restore drill in the Windows app. |
 | 16 | Local backup restore workspace browser | Complete | Local backup catalog, snapshot list refresh, selected local backup restore workspace, and installed-app UI verification. |
+| 17 | Cross-machine backup restore verification | Complete | External backup folder path, external restore workspace, copied-backup restore drill, and installed-app UI verification. |
 
 ## Deferred From V1
 

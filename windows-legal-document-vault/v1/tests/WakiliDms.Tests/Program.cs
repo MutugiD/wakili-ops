@@ -46,6 +46,7 @@ var tests = new (string Name, Action Test)[]
     ("Court output capture rejects non-output document type", CourtOutputCaptureRejectsNonOutputDocumentType),
     ("Backup snapshot copies encrypted vault and database with manifest", BackupSnapshotCopiesEncryptedVaultAndDatabaseWithManifest),
     ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles),
+    ("Restore drill verifies backup copied from another machine", RestoreDrillVerifiesBackupCopiedFromAnotherMachine),
     ("Local backup catalog lists restorable snapshots", LocalBackupCatalogListsRestorableSnapshots),
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
@@ -1242,6 +1243,48 @@ static void LocalBackupCatalogListsRestorableSnapshots()
     }
 }
 
+static void RestoreDrillVerifiesBackupCopiedFromAnotherMachine()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var dbPath = Path.Combine(tempRoot, "wakili-dms.db");
+    var vaultPath = Path.Combine(tempRoot, "vault");
+    var backupTarget = Path.Combine(tempRoot, "backups");
+    var copiedBackupDirectory = Path.Combine(tempRoot, "copied-from-other-machine");
+    var restoreTarget = Path.Combine(tempRoot, "external-restore-workspace");
+    var sourcePath = Path.Combine(tempRoot, "copied-machine-pleading.pdf");
+    var recoveryKey = "external restore recovery key";
+
+    try
+    {
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(sourcePath, "%PDF-1.7\nCopied machine backup fixture\n%%EOF");
+        ImportOneDocumentForBackup(dbPath, vaultPath, sourcePath, recoveryKey);
+
+        var snapshot = new BackupSnapshotService().CreateSnapshotAsync(
+            new BackupSnapshotRequest(vaultPath, dbPath, backupTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+        Assert(snapshot.Succeeded && snapshot.Value is not null, snapshot.Error ?? "Backup snapshot failed.");
+
+        CopyDirectory(snapshot.Value!.BackupDirectory, copiedBackupDirectory);
+        Directory.Delete(backupTarget, recursive: true);
+
+        var drill = new RestoreDrillService().RunAsync(
+            new RestoreDrillRequest(copiedBackupDirectory, restoreTarget, recoveryKey),
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(drill.Succeeded && drill.Value is not null, drill.Error ?? "Copied backup restore drill should pass.");
+        Assert(File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db.backup")), "Copied backup restore should include encrypted database artifact.");
+        Assert(drill.Value!.VerifiedFileCount == snapshot.Value.BackedUpFileCount, "Copied backup restore should verify all files.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
 static void BackupSnapshotRejectsTargetInsideVault()
 {
     var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
@@ -1684,6 +1727,29 @@ static void ImportOneDocumentForBackup(
         new DocumentImportRequest(matter.Id, sourcePath, vaultPath, recoveryKey, DocumentType.Affidavit),
         CancellationToken.None).GetAwaiter().GetResult();
     Assert(imported.Succeeded, imported.Error ?? "Backup fixture import failed.");
+}
+
+static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+{
+    Directory.CreateDirectory(destinationDirectory);
+    foreach (var directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+    {
+        var relativeDirectory = Path.GetRelativePath(sourceDirectory, directory);
+        Directory.CreateDirectory(Path.Combine(destinationDirectory, relativeDirectory));
+    }
+
+    foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+    {
+        var relativeFile = Path.GetRelativePath(sourceDirectory, file);
+        var destinationFile = Path.Combine(destinationDirectory, relativeFile);
+        var destinationParent = Path.GetDirectoryName(destinationFile);
+        if (!string.IsNullOrWhiteSpace(destinationParent))
+        {
+            Directory.CreateDirectory(destinationParent);
+        }
+
+        File.Copy(file, destinationFile, overwrite: false);
+    }
 }
 
 static AppSettings ValidSettings()

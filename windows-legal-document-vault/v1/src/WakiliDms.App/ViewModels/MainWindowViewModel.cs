@@ -58,6 +58,8 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _courtOutputSourceFilePath = string.Empty;
     private string _backupRecoveryKey = string.Empty;
     private string _localRestoreTargetPath = string.Empty;
+    private string _externalBackupDirectoryPath = string.Empty;
+    private string _externalRestoreTargetPath = string.Empty;
     private string _cloudBackupProviderPath = string.Empty;
     private string _cloudRestoreTargetPath = string.Empty;
     private string _searchQuery = string.Empty;
@@ -116,6 +118,7 @@ public sealed class MainWindowViewModel : ObservableObject
         RunBackupCommand = new AsyncRelayCommand(RunBackupAsync, () => CanUseInstall);
         RefreshLocalBackupsCommand = new AsyncRelayCommand(RefreshLocalBackupsAsync, () => CanUseInstall);
         RestoreSelectedLocalBackupCommand = new AsyncRelayCommand(RestoreSelectedLocalBackupAsync, () => CanUseInstall && SelectedLocalBackupSnapshot is not null);
+        VerifyExternalBackupCommand = new AsyncRelayCommand(VerifyExternalBackupAsync, () => CanUseInstall);
         EnableCloudBackupCommand = new AsyncRelayCommand(EnableCloudBackupAsync, () => CanUseInstall);
         UploadCloudBackupCommand = new AsyncRelayCommand(UploadCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled);
         RefreshCloudBackupsCommand = new AsyncRelayCommand(RefreshCloudBackupsAsync, () => CanUseInstall && CloudBackupEnabled);
@@ -271,6 +274,18 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _localRestoreTargetPath;
         set => SetProperty(ref _localRestoreTargetPath, value);
+    }
+
+    public string ExternalBackupDirectoryPath
+    {
+        get => _externalBackupDirectoryPath;
+        set => SetProperty(ref _externalBackupDirectoryPath, value);
+    }
+
+    public string ExternalRestoreTargetPath
+    {
+        get => _externalRestoreTargetPath;
+        set => SetProperty(ref _externalRestoreTargetPath, value);
     }
 
     public string CloudBackupProviderPath
@@ -445,6 +460,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public ICommand RestoreSelectedLocalBackupCommand { get; }
 
+    public ICommand VerifyExternalBackupCommand { get; }
+
     public ICommand EnableCloudBackupCommand { get; }
 
     public ICommand UploadCloudBackupCommand { get; }
@@ -528,6 +545,7 @@ public sealed class MainWindowViewModel : ObservableObject
         BackupTargetPath = ensuredSettings.BackupTargetPath;
         FilingPackExportRootPath = ensuredSettings.BackupTargetPath;
         LocalRestoreTargetPath = Path.Combine(ensuredSettings.BackupTargetPath, "local-restore-workspace");
+        ExternalRestoreTargetPath = Path.Combine(ensuredSettings.BackupTargetPath, "external-restore-workspace");
         CloudBackupProviderPath = DefaultCloudBackupProviderPath(ensuredSettings);
         CloudRestoreTargetPath = Path.Combine(ensuredSettings.BackupTargetPath, "cloud-restore");
         CloudBackupEnabled = ensuredSettings.CloudBackupEnabled;
@@ -583,6 +601,7 @@ public sealed class MainWindowViewModel : ObservableObject
         DeviceNickname = settings.DeviceNickname;
         LicenseStatus = settings.LicenseStatus;
         LocalRestoreTargetPath = Path.Combine(settings.BackupTargetPath, "local-restore-workspace");
+        ExternalRestoreTargetPath = Path.Combine(settings.BackupTargetPath, "external-restore-workspace");
         CloudBackupProviderPath = DefaultCloudBackupProviderPath(settings);
         CloudRestoreTargetPath = Path.Combine(settings.BackupTargetPath, "cloud-restore");
         CloudBackupEnabled = settings.CloudBackupEnabled;
@@ -950,6 +969,47 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"Local backup restore workspace verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}.";
     }
 
+    public async Task VerifyExternalBackupAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ExternalBackupDirectoryPath))
+        {
+            StatusMessage = "External backup folder is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BackupRecoveryKey))
+        {
+            StatusMessage = "Recovery key is required to verify an external backup.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ExternalRestoreTargetPath))
+        {
+            StatusMessage = "External restore workspace folder is required.";
+            return;
+        }
+
+        var drill = await _restoreDrillService.RunAsync(
+            new RestoreDrillRequest(
+                ExternalBackupDirectoryPath,
+                ExternalRestoreTargetPath,
+                BackupRecoveryKey),
+            CancellationToken.None);
+        if (!drill.Succeeded || drill.Value is null)
+        {
+            StatusMessage = drill.Error ?? "External backup restore verification failed.";
+            return;
+        }
+
+        BackupRecoveryKey = string.Empty;
+        StatusMessage = $"External backup restore verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}.";
+    }
+
     public async Task EnableCloudBackupAsync()
     {
         if (!CanUseLicensedFeatures())
@@ -1246,6 +1306,7 @@ public sealed class MainWindowViewModel : ObservableObject
         (RunBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RefreshLocalBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (VerifyExternalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (EnableCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (UploadCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RefreshCloudBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
