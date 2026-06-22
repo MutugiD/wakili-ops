@@ -35,6 +35,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly BackupSnapshotService _backupSnapshotService;
     private readonly LocalBackupCatalogService _localBackupCatalogService;
     private readonly RestoreDrillService _restoreDrillService;
+    private readonly RestoreVerificationReportService _restoreVerificationReportService;
     private readonly CloudBackupService _cloudBackupService;
     private readonly InstallationControlService _installationControlService;
     private AppSettings? _currentSettings;
@@ -103,6 +104,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _backupSnapshotService = new BackupSnapshotService();
         _localBackupCatalogService = new LocalBackupCatalogService();
         _restoreDrillService = new RestoreDrillService();
+        _restoreVerificationReportService = new RestoreVerificationReportService();
         _cloudBackupService = new CloudBackupService();
         _installationControlService = new InstallationControlService();
         CompleteSetupCommand = new AsyncRelayCommand(CompleteSetupAsync);
@@ -966,7 +968,11 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         BackupRecoveryKey = string.Empty;
-        StatusMessage = $"Local backup restore workspace verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}.";
+        var reportPath = await WriteRestoreVerificationReportAsync(
+            drill.Value,
+            "LocalBackup",
+            SelectedLocalBackupSnapshot.SnapshotId);
+        StatusMessage = $"Local backup restore workspace verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}. Report: {reportPath}.";
     }
 
     public async Task VerifyExternalBackupAsync()
@@ -1007,7 +1013,11 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         BackupRecoveryKey = string.Empty;
-        StatusMessage = $"External backup restore verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}.";
+        var reportPath = await WriteRestoreVerificationReportAsync(
+            drill.Value,
+            "ExternalBackup",
+            ExternalBackupDirectoryPath);
+        StatusMessage = $"External backup restore verified {drill.Value.VerifiedFileCount:N0} file(s) at {drill.Value.RestoreDirectory}. Report: {reportPath}.";
     }
 
     public async Task EnableCloudBackupAsync()
@@ -1156,7 +1166,11 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         BackupRecoveryKey = string.Empty;
-        StatusMessage = $"Cloud backup restore drill verified {drill.Value.VerifiedFileCount:N0} file(s) from snapshot {SelectedCloudBackupSnapshot.SnapshotId}.";
+        var reportPath = await WriteRestoreVerificationReportAsync(
+            drill.Value,
+            "CloudBackup",
+            SelectedCloudBackupSnapshot.SnapshotId);
+        StatusMessage = $"Cloud backup restore drill verified {drill.Value.VerifiedFileCount:N0} file(s) from snapshot {SelectedCloudBackupSnapshot.SnapshotId}. Report: {reportPath}.";
     }
 
     private async Task ReloadMattersAsync()
@@ -1173,6 +1187,30 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             SelectedMatter = Matters.FirstOrDefault(matter => matter.Id == selectedMatterId.Value);
         }
+    }
+
+    private async Task<string> WriteRestoreVerificationReportAsync(
+        RestoreDrillResult drill,
+        string sourceKind,
+        string sourceIdentifier)
+    {
+        var report = new RestoreVerificationReport(
+            ReportVersion: 1,
+            CreatedAt: DateTimeOffset.UtcNow,
+            SourceKind: sourceKind,
+            SourceIdentifier: sourceIdentifier,
+            RestoreDirectory: drill.RestoreDirectory,
+            VerifiedFileCount: drill.VerifiedFileCount,
+            RestoredByteLength: drill.RestoredByteLength,
+            PrivacyNote: "This report intentionally excludes matter names, document names, case numbers, OCR text, document text, and recovery keys.");
+
+        var result = await _restoreVerificationReportService.WriteAsync(
+            drill.RestoreDirectory,
+            report,
+            CancellationToken.None);
+        return result.Succeeded && result.Value is not null
+            ? result.Value
+            : result.Error ?? "report unavailable";
     }
 
     private async Task ReloadDocumentsForSelectionAsync(Guid? selectedDocumentId = null)

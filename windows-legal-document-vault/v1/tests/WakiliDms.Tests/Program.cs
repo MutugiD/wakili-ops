@@ -47,6 +47,7 @@ var tests = new (string Name, Action Test)[]
     ("Backup snapshot copies encrypted vault and database with manifest", BackupSnapshotCopiesEncryptedVaultAndDatabaseWithManifest),
     ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles),
     ("Restore drill verifies backup copied from another machine", RestoreDrillVerifiesBackupCopiedFromAnotherMachine),
+    ("Restore verification report excludes document text", RestoreVerificationReportExcludesDocumentText),
     ("Local backup catalog lists restorable snapshots", LocalBackupCatalogListsRestorableSnapshots),
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
@@ -1275,6 +1276,46 @@ static void RestoreDrillVerifiesBackupCopiedFromAnotherMachine()
         Assert(drill.Succeeded && drill.Value is not null, drill.Error ?? "Copied backup restore drill should pass.");
         Assert(File.Exists(Path.Combine(restoreTarget, "data", "wakili-dms.db.backup")), "Copied backup restore should include encrypted database artifact.");
         Assert(drill.Value!.VerifiedFileCount == snapshot.Value.BackedUpFileCount, "Copied backup restore should verify all files.");
+    }
+    finally
+    {
+        if (Directory.Exists(tempRoot))
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+}
+
+static void RestoreVerificationReportExcludesDocumentText()
+{
+    var tempRoot = Path.Combine(Path.GetTempPath(), "WakiliDms.Tests", Guid.NewGuid().ToString("N"));
+    var reportDirectory = Path.Combine(tempRoot, "restore-workspace");
+    var confidentialText = "Confidential Jane Doe affidavit text";
+    var recoveryKeyValue = "super-secret-restore-key";
+
+    try
+    {
+        var report = new RestoreVerificationReport(
+            1,
+            DateTimeOffset.UtcNow,
+            "ExternalBackup",
+            "copied-from-drive",
+            reportDirectory,
+            2,
+            4096,
+            "This report intentionally excludes matter names, document names, case numbers, OCR text, document text, and recovery keys.");
+
+        var result = new RestoreVerificationReportService().WriteAsync(
+            reportDirectory,
+            report,
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert(result.Succeeded && result.Value is not null, result.Error ?? "Report write failed.");
+        var json = File.ReadAllText(result.Value!);
+        Assert(json.Contains("ExternalBackup", StringComparison.Ordinal), "Report should include source kind.");
+        Assert(json.Contains("restore-workspace", StringComparison.OrdinalIgnoreCase), "Report should include restore workspace path.");
+        Assert(!json.Contains(confidentialText, StringComparison.Ordinal), "Report must not include document text.");
+        Assert(!json.Contains(recoveryKeyValue, StringComparison.Ordinal), "Report must not include recovery-key values.");
     }
     finally
     {

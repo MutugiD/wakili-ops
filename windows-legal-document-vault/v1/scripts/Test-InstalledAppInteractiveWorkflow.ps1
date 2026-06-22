@@ -363,6 +363,10 @@ try {
     if ($localRestoreDatabaseBackups.Count -eq 0) {
         throw "Local restore workspace encrypted database backup was not created."
     }
+    $localRestoreReports = @(Get-ChildItem -Path $localRestorePath -Recurse -Filter "restore-verification-report.json")
+    if ($localRestoreReports.Count -eq 0) {
+        throw "Local restore verification report was not created."
+    }
     $sourceBackupDirectory = Split-Path -Parent $backupManifests[0].FullName
     Copy-Item -Path (Join-Path $sourceBackupDirectory "*") -Destination $externalBackupPath -Recurse -Force
     Set-ElementValue -Window $window -AutomationId "ExternalBackupDirectoryPath" -Value $externalBackupPath
@@ -373,6 +377,10 @@ try {
     $externalRestoreDatabaseBackups = @(Get-ChildItem -Path $externalRestorePath -Recurse -Filter "wakili-dms.db.backup")
     if ($externalRestoreDatabaseBackups.Count -eq 0) {
         throw "External restore workspace encrypted database backup was not created."
+    }
+    $externalRestoreReports = @(Get-ChildItem -Path $externalRestorePath -Recurse -Filter "restore-verification-report.json")
+    if ($externalRestoreReports.Count -eq 0) {
+        throw "External restore verification report was not created."
     }
 
     Set-ElementValue -Window $window -AutomationId "CloudBackupProviderPath" -Value $cloudProviderPath
@@ -388,6 +396,10 @@ try {
     Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
     Invoke-Element -Window $window -AutomationId "RestoreSelectedCloudBackupButton"
     Find-TextContaining -Window $window -Text "Cloud backup restore drill verified" -TimeoutSeconds 60 | Out-Null
+    $cloudRestoreReports = @(Get-ChildItem -Path $cloudRestorePath -Recurse -Filter "restore-verification-report.json")
+    if ($cloudRestoreReports.Count -eq 0) {
+        throw "Cloud restore verification report was not created."
+    }
     $cloudPackages = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
     if ($cloudPackages.Count -eq 0) {
         throw "Cloud backup package was not created."
@@ -417,7 +429,10 @@ try {
         FilingPackManifestCount = $filingManifests.Count
         BackupManifestCount = $backupManifests.Count
         LocalRestoreDatabaseBackupCount = $localRestoreDatabaseBackups.Count
+        LocalRestoreReportCount = $localRestoreReports.Count
         ExternalRestoreDatabaseBackupCount = $externalRestoreDatabaseBackups.Count
+        ExternalRestoreReportCount = $externalRestoreReports.Count
+        CloudRestoreReportCount = $cloudRestoreReports.Count
         CloudBackupPackageCount = $cloudPackages.Count
         UsedDefaultUserAppData = [bool]$UseDefaultUserAppData
     } | ConvertTo-Json -Depth 4

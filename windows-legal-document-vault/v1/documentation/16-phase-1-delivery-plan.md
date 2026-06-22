@@ -49,6 +49,7 @@ The user should be able to:
 - Run a restore drill without overwriting the live vault.
 - Refresh local backup snapshots and verify a selected backup into a restore workspace.
 - Verify a backup folder copied from another machine into a separate restore workspace.
+- Produce a restore verification report for local, external, and cloud restore checks.
 - Enable the local provider cloud-backup option.
 - Upload an encrypted backup package.
 - Select a cloud backup snapshot and verify restore.
@@ -210,6 +211,7 @@ Owns:
 - Local backup snapshot catalog.
 - Selected local backup restore workspace.
 - External backup folder restore verification.
+- Privacy-preserving restore verification reports.
 
 Acceptance:
 
@@ -220,6 +222,7 @@ Acceptance:
 - Local backup list shows valid snapshots.
 - Selected local backup can be verified into a restore workspace.
 - Copied external backup folders can be verified without the original backup target.
+- Restore workspaces include a report that excludes matter names, document text, and recovery-key values.
 
 ### Optional Cloud Backup
 
@@ -281,6 +284,6 @@ Required before merge:
 The next implementation slices should remain close to document safety and recovery:
 
 1. Production cloud provider adapter after provider choice.
-2. Restore handoff report for support and cross-machine recovery.
+2. Backup health summary on the home screen.
 3. UI navigation polish after workflows stabilize.
 4. Phase 2 export contract for Local Matter RAG Connector.

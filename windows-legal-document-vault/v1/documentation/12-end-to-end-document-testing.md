@@ -43,6 +43,7 @@ Expected workflow coverage:
 - Local backup snapshot list refreshes.
 - Selected local backup restore workspace is verified.
 - Copied external backup folder restore verification completes.
+- Restore verification report files are created for local, external, and cloud restore checks.
 - Cloud backup uploads an encrypted package to the local provider adapter.
 - Cloud restore drill verifies the selected cloud snapshot.
 

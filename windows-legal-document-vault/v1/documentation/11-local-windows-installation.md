@@ -248,6 +248,7 @@ Expected result:
 - A local backup snapshot is selected.
 - A selected local backup restore workspace is created and verified.
 - A copied external backup folder is verified into a separate restore workspace.
+- Restore verification reports are created for local, external, and cloud restore checks.
 - Cloud backup is enabled against a local provider folder.
 - An encrypted cloud backup package is uploaded.
 - The cloud snapshot list is refreshed and a snapshot is selected.

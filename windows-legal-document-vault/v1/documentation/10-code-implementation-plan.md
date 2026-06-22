@@ -517,8 +517,23 @@ Verification:
 - `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "copied from another machine"`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Restore Verification Reports
+
+Implemented:
+
+- `RestoreVerificationReport` and `RestoreVerificationReportService`.
+- Local backup restore workspace reports.
+- External backup restore verification reports.
+- Cloud backup restore drill reports.
+- Installed-app interactive workflow checks report files across all restore paths.
+
+Verification:
+
+- `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Restore verification report"`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Restore handoff report for support and cross-machine recovery.
+2. Backup health summary on the home screen.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

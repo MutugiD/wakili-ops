@@ -314,3 +314,23 @@ Manual verification:
 - Choose a restore workspace folder.
 - Enter the recovery key.
 - Run external backup verification and confirm restored encrypted artifacts are created.
+
+## Slice 18: Restore Verification Reports
+
+Goal:
+
+- Create a support-friendly report after each restore verification without exposing matter contents or recovery keys.
+
+Automated tests:
+
+- Report file is written to the restore workspace.
+- Report contains source kind, source identifier, restore directory, verified file count, and byte count.
+- Report does not contain document text or recovery-key values.
+- Installed-app workflow verifies reports for local, external, and cloud restore paths.
+
+Manual verification:
+
+- Run selected local restore workspace.
+- Run external backup restore verification.
+- Run selected cloud restore drill.
+- Confirm each restore workspace contains `restore-verification-report.json`.

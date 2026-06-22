@@ -35,6 +35,7 @@ This log tracks V1 planning and implementation progress.
 | 15 | User-facing Backup Center cloud controls | Complete | Local-provider cloud backup enablement, encrypted cloud upload, snapshot list refresh, selected snapshot download, and cloud restore drill in the Windows app. |
 | 16 | Local backup restore workspace browser | Complete | Local backup catalog, snapshot list refresh, selected local backup restore workspace, and installed-app UI verification. |
 | 17 | Cross-machine backup restore verification | Complete | External backup folder path, external restore workspace, copied-backup restore drill, and installed-app UI verification. |
+| 18 | Restore verification reports | Complete | Local, external, and cloud restore verification now write privacy-preserving `restore-verification-report.json` files. |
 
 ## Deferred From V1
 
