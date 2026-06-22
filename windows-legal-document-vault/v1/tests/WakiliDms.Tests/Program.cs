@@ -54,6 +54,8 @@ var tests = new (string Name, Action Test)[]
     ("Local backup catalog lists restorable snapshots", LocalBackupCatalogListsRestorableSnapshots),
     ("Local backup delete removes only selected snapshot", LocalBackupDeleteRemovesOnlySelectedSnapshot),
     ("Local backup delete rejects folders outside backup target", LocalBackupDeleteRejectsFoldersOutsideBackupTarget),
+    ("Backup retention planner keeps newest snapshots and selects old candidates", BackupRetentionPlannerKeepsNewestSnapshotsAndSelectsOldCandidates),
+    ("Backup retention planner rejects invalid policy", BackupRetentionPlannerRejectsInvalidPolicy),
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
     ("Restore drill rejects tampered backup hashes", RestoreDrillRejectsTamperedBackupHashes),
@@ -1309,6 +1311,38 @@ static void LocalBackupDeleteRejectsFoldersOutsideBackupTarget()
             Directory.Delete(tempRoot, recursive: true);
         }
     }
+}
+
+static void BackupRetentionPlannerKeepsNewestSnapshotsAndSelectsOldCandidates()
+{
+    var now = DateTimeOffset.UtcNow;
+    var snapshots = new[]
+    {
+        new LocalBackupSnapshotSummary(@"D:\Backups\newest", "newest", now.AddHours(-1), 2, 200),
+        new LocalBackupSnapshotSummary(@"D:\Backups\middle", "middle", now.AddDays(-2), 2, 200),
+        new LocalBackupSnapshotSummary(@"D:\Backups\oldest", "oldest", now.AddDays(-10), 2, 200)
+    };
+
+    var plan = new BackupRetentionPlanner().Plan(
+        snapshots,
+        new BackupRetentionPolicy(1, 1),
+        now);
+
+    Assert(plan.Succeeded && plan.Value is not null, plan.Error ?? "Retention plan should be valid.");
+    Assert(plan.Value!.DeleteCandidates.Count == 2, "Retention should delete snapshots outside newest count and older than threshold.");
+    Assert(plan.Value.DeleteCandidates.Any(candidate => candidate.SnapshotId == "middle"), "Middle old snapshot should be a deletion candidate.");
+    Assert(plan.Value.DeleteCandidates.Any(candidate => candidate.SnapshotId == "oldest"), "Oldest snapshot should be a deletion candidate.");
+    Assert(!plan.Value.DeleteCandidates.Any(candidate => candidate.SnapshotId == "newest"), "Newest snapshot should be retained.");
+}
+
+static void BackupRetentionPlannerRejectsInvalidPolicy()
+{
+    var plan = new BackupRetentionPlanner().Plan(
+        [],
+        new BackupRetentionPolicy(-1, 30),
+        DateTimeOffset.UtcNow);
+
+    Assert(!plan.Succeeded, "Negative keep-latest count should be rejected.");
 }
 
 static void RestoreDrillVerifiesBackupCopiedFromAnotherMachine()

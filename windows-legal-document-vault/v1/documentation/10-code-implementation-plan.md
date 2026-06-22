@@ -562,8 +562,23 @@ Verification:
 - `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "delete"`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Local Backup Retention Policy Automation
+
+Implemented:
+
+- `BackupRetentionPolicy`, `BackupRetentionPlanner`, `BackupRetentionPlan`, and candidate records.
+- Backup Center fields for keep-latest count and delete-older-than days.
+- Preview local backup cleanup command.
+- Apply local backup cleanup command.
+- Installed-app interactive workflow verifies two backups are reduced to one by retention cleanup.
+
+Verification:
+
+- `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "retention"`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Backup cleanup confirmation and retention policy automation.
+2. Backup cleanup confirmation prompts.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

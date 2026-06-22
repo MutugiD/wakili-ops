@@ -52,6 +52,7 @@ The user should be able to:
 - Produce a restore verification report for local, external, and cloud restore checks.
 - See backup health and last backup timestamps in the app.
 - Delete selected local and cloud backup snapshots without touching the live vault.
+- Preview and apply local backup retention cleanup.
 - Enable the local provider cloud-backup option.
 - Upload an encrypted backup package.
 - Select a cloud backup snapshot and verify restore.
@@ -216,6 +217,7 @@ Owns:
 - Privacy-preserving restore verification reports.
 - Backup health summary.
 - Backup snapshot cleanup controls.
+- Local backup retention policy automation.
 
 Acceptance:
 
@@ -229,6 +231,7 @@ Acceptance:
 - Restore workspaces include a report that excludes matter names, document text, and recovery-key values.
 - Backup health flags missing or stale local backups and confirms when local/cloud snapshots are available.
 - Deleting selected backup snapshots does not delete the live vault.
+- Retention cleanup keeps the newest configured snapshots and deletes only valid local backup snapshots.
 
 ### Optional Cloud Backup
 
@@ -290,6 +293,6 @@ Required before merge:
 The next implementation slices should remain close to document safety and recovery:
 
 1. Production cloud provider adapter after provider choice.
-2. Backup cleanup confirmation and retention policy automation.
+2. Backup cleanup confirmation prompts.
 3. UI navigation polish after workflows stabilize.
 4. Phase 2 export contract for Local Matter RAG Connector.

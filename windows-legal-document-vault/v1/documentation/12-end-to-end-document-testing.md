@@ -43,6 +43,7 @@ Expected workflow coverage:
 - Local backup snapshot list refreshes.
 - Backup health updates after local backup.
 - Selected local backup restore workspace is verified.
+- Local backup retention preview and cleanup reduce multiple snapshots to the expected retained count.
 - Copied external backup folder restore verification completes.
 - Restore verification report files are created for local, external, and cloud restore checks.
 - Cloud backup uploads an encrypted package to the local provider adapter.

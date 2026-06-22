@@ -38,6 +38,7 @@ This log tracks V1 planning and implementation progress.
 | 18 | Restore verification reports | Complete | Local, external, and cloud restore verification now write privacy-preserving `restore-verification-report.json` files. |
 | 19 | Backup health summary | Complete | Home status panel shows local/cloud backup health, last local backup time, and last cloud backup time. |
 | 20 | Backup retention and cleanup | Complete | Selected local backup delete, selected cloud backup delete, safety checks, and installed-app vault preservation verification. |
+| 21 | Local backup retention policy automation | Complete | Keep-latest/delete-older-than preview and apply flow for local backup cleanup, with installed-app verification. |
 
 ## Deferred From V1
 

@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Collections.ObjectModel;
 using WakiliDms.Core.Backup;
 using WakiliDms.Core.CloudBackup;
+using WakiliDms.Core.Common;
 using WakiliDms.Core.CourtOutput;
 using WakiliDms.Core.Documents;
 using WakiliDms.Core.Domain;
@@ -35,6 +36,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly BackupSnapshotService _backupSnapshotService;
     private readonly LocalBackupCatalogService _localBackupCatalogService;
     private readonly LocalBackupDeletionService _localBackupDeletionService;
+    private readonly BackupRetentionPlanner _backupRetentionPlanner;
     private readonly BackupHealthEvaluationService _backupHealthEvaluationService;
     private readonly RestoreDrillService _restoreDrillService;
     private readonly RestoreVerificationReportService _restoreVerificationReportService;
@@ -63,6 +65,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _localRestoreTargetPath = string.Empty;
     private string _externalBackupDirectoryPath = string.Empty;
     private string _externalRestoreTargetPath = string.Empty;
+    private string _retentionKeepLatestCount = "3";
+    private string _retentionDeleteOlderThanDays = "30";
+    private string _retentionPreviewText = "Local backup retention preview has not been run.";
     private string _cloudBackupProviderPath = string.Empty;
     private string _cloudRestoreTargetPath = string.Empty;
     private string _searchQuery = string.Empty;
@@ -109,6 +114,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _backupSnapshotService = new BackupSnapshotService();
         _localBackupCatalogService = new LocalBackupCatalogService();
         _localBackupDeletionService = new LocalBackupDeletionService();
+        _backupRetentionPlanner = new BackupRetentionPlanner();
         _backupHealthEvaluationService = new BackupHealthEvaluationService();
         _restoreDrillService = new RestoreDrillService();
         _restoreVerificationReportService = new RestoreVerificationReportService();
@@ -128,6 +134,8 @@ public sealed class MainWindowViewModel : ObservableObject
         RefreshLocalBackupsCommand = new AsyncRelayCommand(RefreshLocalBackupsAsync, () => CanUseInstall);
         RestoreSelectedLocalBackupCommand = new AsyncRelayCommand(RestoreSelectedLocalBackupAsync, () => CanUseInstall && SelectedLocalBackupSnapshot is not null);
         DeleteSelectedLocalBackupCommand = new AsyncRelayCommand(DeleteSelectedLocalBackupAsync, () => CanUseInstall && SelectedLocalBackupSnapshot is not null);
+        PreviewLocalBackupRetentionCommand = new AsyncRelayCommand(PreviewLocalBackupRetentionAsync, () => CanUseInstall);
+        ApplyLocalBackupRetentionCommand = new AsyncRelayCommand(ApplyLocalBackupRetentionAsync, () => CanUseInstall);
         VerifyExternalBackupCommand = new AsyncRelayCommand(VerifyExternalBackupAsync, () => CanUseInstall);
         EnableCloudBackupCommand = new AsyncRelayCommand(EnableCloudBackupAsync, () => CanUseInstall);
         UploadCloudBackupCommand = new AsyncRelayCommand(UploadCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled);
@@ -297,6 +305,24 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         get => _externalRestoreTargetPath;
         set => SetProperty(ref _externalRestoreTargetPath, value);
+    }
+
+    public string RetentionKeepLatestCount
+    {
+        get => _retentionKeepLatestCount;
+        set => SetProperty(ref _retentionKeepLatestCount, value);
+    }
+
+    public string RetentionDeleteOlderThanDays
+    {
+        get => _retentionDeleteOlderThanDays;
+        set => SetProperty(ref _retentionDeleteOlderThanDays, value);
+    }
+
+    public string RetentionPreviewText
+    {
+        get => _retentionPreviewText;
+        private set => SetProperty(ref _retentionPreviewText, value);
     }
 
     public string CloudBackupProviderPath
@@ -493,6 +519,10 @@ public sealed class MainWindowViewModel : ObservableObject
     public ICommand RestoreSelectedLocalBackupCommand { get; }
 
     public ICommand DeleteSelectedLocalBackupCommand { get; }
+
+    public ICommand PreviewLocalBackupRetentionCommand { get; }
+
+    public ICommand ApplyLocalBackupRetentionCommand { get; }
 
     public ICommand VerifyExternalBackupCommand { get; }
 
@@ -1037,6 +1067,60 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"Local backup snapshot deleted: {snapshotId}.";
     }
 
+    public async Task PreviewLocalBackupRetentionAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        await ReloadLocalBackupsAsync();
+        var plan = BuildLocalRetentionPlan();
+        if (!plan.Succeeded || plan.Value is null)
+        {
+            RetentionPreviewText = plan.Error ?? "Local backup retention preview failed.";
+            StatusMessage = RetentionPreviewText;
+            return;
+        }
+
+        RetentionPreviewText = FormatRetentionPreview(plan.Value);
+        StatusMessage = RetentionPreviewText;
+    }
+
+    public async Task ApplyLocalBackupRetentionAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return;
+        }
+
+        await ReloadLocalBackupsAsync();
+        var plan = BuildLocalRetentionPlan();
+        if (!plan.Succeeded || plan.Value is null)
+        {
+            RetentionPreviewText = plan.Error ?? "Local backup retention cleanup failed.";
+            StatusMessage = RetentionPreviewText;
+            return;
+        }
+
+        var deletedCount = 0;
+        foreach (var candidate in plan.Value.DeleteCandidates)
+        {
+            var delete = _localBackupDeletionService.DeleteSnapshot(BackupTargetPath, candidate.BackupDirectory);
+            if (!delete.Succeeded)
+            {
+                StatusMessage = delete.Error ?? $"Local backup retention cleanup failed on {candidate.SnapshotId}.";
+                return;
+            }
+
+            deletedCount++;
+        }
+
+        await ReloadLocalBackupsAsync();
+        RetentionPreviewText = $"Local backup retention cleanup deleted {deletedCount:N0} snapshot(s); {LocalBackupSnapshots.Count:N0} snapshot(s) remain.";
+        StatusMessage = RetentionPreviewText;
+    }
+
     public async Task VerifyExternalBackupAsync()
     {
         if (!CanUseLicensedFeatures())
@@ -1310,6 +1394,35 @@ public sealed class MainWindowViewModel : ObservableObject
             : result.Error ?? "report unavailable";
     }
 
+    private Result<BackupRetentionPlan> BuildLocalRetentionPlan()
+    {
+        if (!int.TryParse(RetentionKeepLatestCount, out var keepLatestCount))
+        {
+            return Result<BackupRetentionPlan>.Fail("Keep-latest count must be a whole number.");
+        }
+
+        if (!int.TryParse(RetentionDeleteOlderThanDays, out var deleteOlderThanDays))
+        {
+            return Result<BackupRetentionPlan>.Fail("Delete-older-than days must be a whole number.");
+        }
+
+        var policy = new BackupRetentionPolicy(keepLatestCount, deleteOlderThanDays);
+        return _backupRetentionPlanner.Plan(
+            LocalBackupSnapshots.Select(snapshot => snapshot.Summary).ToArray(),
+            policy,
+            DateTimeOffset.UtcNow);
+    }
+
+    private static string FormatRetentionPreview(BackupRetentionPlan plan)
+    {
+        if (plan.DeleteCandidates.Count == 0)
+        {
+            return $"Local backup retention preview: 0 snapshot(s) would be deleted; {plan.KeptSnapshotCount:N0} snapshot(s) would remain.";
+        }
+
+        return $"Local backup retention preview: {plan.DeleteCandidates.Count:N0} snapshot(s) would be deleted; {plan.KeptSnapshotCount:N0} snapshot(s) would remain. Oldest candidate: {plan.DeleteCandidates[^1].SnapshotId}.";
+    }
+
     private async Task ReloadDocumentsForSelectionAsync(Guid? selectedDocumentId = null)
     {
         var previousSelectedDocumentId = selectedDocumentId ?? SelectedDocument?.Id;
@@ -1469,6 +1582,8 @@ public sealed class MainWindowViewModel : ObservableObject
         (RefreshLocalBackupsCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (DeleteSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (PreviewLocalBackupRetentionCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (ApplyLocalBackupRetentionCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (VerifyExternalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (EnableCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (UploadCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();

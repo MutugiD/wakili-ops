@@ -248,6 +248,7 @@ Expected result:
 - Backup health shows the local backup snapshot is available.
 - A local backup snapshot is selected.
 - A selected local backup restore workspace is created and verified.
+- Local backup retention preview and cleanup can reduce old backup snapshots while keeping the newest snapshot.
 - A copied external backup folder is verified into a separate restore workspace.
 - Restore verification reports are created for local, external, and cloud restore checks.
 - Cloud backup is enabled against a local provider folder.

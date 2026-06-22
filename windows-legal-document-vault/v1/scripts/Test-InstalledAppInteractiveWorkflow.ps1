@@ -384,6 +384,22 @@ try {
     if ($externalRestoreReports.Count -eq 0) {
         throw "External restore verification report was not created."
     }
+    Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
+    Invoke-Element -Window $window -AutomationId "RunBackupButton"
+    Find-TextContaining -Window $window -Text "Backup created and restore drill verified" -TimeoutSeconds 60 | Out-Null
+    Invoke-Element -Window $window -AutomationId "RefreshLocalBackupsButton"
+    Find-TextContaining -Window $window -Text "Local backup list refreshed: 2 snapshot" -TimeoutSeconds 30 | Out-Null
+    Set-ElementValue -Window $window -AutomationId "RetentionKeepLatestCount" -Value "1"
+    Set-ElementValue -Window $window -AutomationId "RetentionDeleteOlderThanDays" -Value "0"
+    Invoke-Element -Window $window -AutomationId "PreviewLocalBackupRetentionButton"
+    Find-TextContaining -Window $window -Text "Local backup retention preview: 1 snapshot" -TimeoutSeconds 30 | Out-Null
+    Invoke-Element -Window $window -AutomationId "ApplyLocalBackupRetentionButton"
+    Find-TextContaining -Window $window -Text "Local backup retention cleanup deleted 1 snapshot" -TimeoutSeconds 30 | Out-Null
+    $backupManifestsAfterRetention = @(Get-ChildItem -Path $backupPath -Recurse -Filter "backup-manifest.json")
+    if ($backupManifestsAfterRetention.Count -ne 1) {
+        throw "Retention cleanup should leave exactly one local backup manifest; found $($backupManifestsAfterRetention.Count)."
+    }
+    $remainingBackupDirectory = Split-Path -Parent $backupManifestsAfterRetention[0].FullName
 
     Set-ElementValue -Window $window -AutomationId "CloudBackupProviderPath" -Value $cloudProviderPath
     Invoke-Element -Window $window -AutomationId "EnableCloudBackupButton"
@@ -422,8 +438,8 @@ try {
 
     Invoke-Element -Window $window -AutomationId "DeleteSelectedLocalBackupButton"
     Find-TextContaining -Window $window -Text "Local backup snapshot deleted" -TimeoutSeconds 30 | Out-Null
-    if (Test-Path $sourceBackupDirectory) {
-        throw "Selected local backup directory remained after delete: $sourceBackupDirectory"
+    if (Test-Path $remainingBackupDirectory) {
+        throw "Selected local backup directory remained after delete: $remainingBackupDirectory"
     }
     if (-not (Test-Path (Join-Path $vaultPath "vault.manifest.json"))) {
         throw "Live vault manifest was deleted during backup cleanup."
@@ -451,6 +467,7 @@ try {
         LocalRestoreReportCount = $localRestoreReports.Count
         ExternalRestoreDatabaseBackupCount = $externalRestoreDatabaseBackups.Count
         ExternalRestoreReportCount = $externalRestoreReports.Count
+        BackupManifestCountAfterRetention = $backupManifestsAfterRetention.Count
         CloudRestoreReportCount = $cloudRestoreReports.Count
         CloudBackupPackageCount = $cloudPackages.Count
         CloudBackupPackageCountAfterDelete = $cloudPackagesAfterDelete.Count

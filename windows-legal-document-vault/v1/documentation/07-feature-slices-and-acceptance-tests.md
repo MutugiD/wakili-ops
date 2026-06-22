@@ -378,3 +378,25 @@ Manual verification:
 - Select a cloud backup snapshot.
 - Delete the selected cloud backup.
 - Refresh backup lists and confirm deleted snapshots no longer appear.
+
+## Slice 21: Local Backup Retention Policy Automation
+
+Goal:
+
+- Let the user preview and apply a local backup cleanup policy based on keep-latest count and snapshot age.
+
+Automated tests:
+
+- Retention planner keeps the newest snapshots.
+- Retention planner selects older snapshots outside the keep-latest count.
+- Invalid retention policies are rejected.
+- Installed-app workflow creates multiple local backups, previews cleanup, applies cleanup, and confirms the expected backup count remains.
+
+Manual verification:
+
+- Create two or more local backup snapshots.
+- Set keep-latest count.
+- Set delete-older-than days.
+- Preview cleanup.
+- Apply cleanup.
+- Confirm retained backup snapshots remain restorable.

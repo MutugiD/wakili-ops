@@ -314,6 +314,33 @@
                             HorizontalAlignment="Left"
                             Padding="18,8"
                             Margin="0,10,0,0" />
+                    <TextBlock Text="Local backup retention"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0,28,0,8" />
+                    <TextBlock Text="Keep latest snapshot count" Margin="0,0,0,4" />
+                    <TextBox AutomationProperties.AutomationId="RetentionKeepLatestCount"
+                             Text="{Binding RetentionKeepLatestCount, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Text="Delete snapshots older than days" Margin="0,10,0,4" />
+                    <TextBox AutomationProperties.AutomationId="RetentionDeleteOlderThanDays"
+                             Text="{Binding RetentionDeleteOlderThanDays, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Content="Preview local backup cleanup"
+                            AutomationProperties.AutomationId="PreviewLocalBackupRetentionButton"
+                            Command="{Binding PreviewLocalBackupRetentionCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
+                    <Button Content="Apply local backup cleanup"
+                            AutomationProperties.AutomationId="ApplyLocalBackupRetentionButton"
+                            Command="{Binding ApplyLocalBackupRetentionCommand}"
+                            HorizontalAlignment="Left"
+                            Padding="18,8"
+                            Margin="0,10,0,0" />
+                    <TextBlock Text="{Binding RetentionPreviewText}"
+                               AutomationProperties.AutomationId="RetentionPreviewText"
+                               TextWrapping="Wrap"
+                               Foreground="#374151"
+                               Margin="0,10,0,0" />
                     <TextBlock Text="External backup from another machine"
                                FontSize="16"
                                FontWeight="SemiBold"
