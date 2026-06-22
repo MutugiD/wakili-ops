@@ -593,8 +593,22 @@ Verification:
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 - Full build/test/security gate before merge.
 
+## Completed Slice: Backup Cleanup Cancellation Coverage
+
+Implemented:
+
+- Installed-app automation helper for selecting No in confirmation dialogs.
+- Retention cleanup cancellation check that verifies both backup manifests remain.
+- Cloud backup delete cancellation check that verifies the encrypted provider package remains.
+- Local backup delete cancellation check that verifies the selected backup directory remains.
+- Follow-up Yes path for each operation so cancellation coverage does not hide broken deletion behavior.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Backup cleanup cancellation test coverage.
+2. Backup restore usability polish.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

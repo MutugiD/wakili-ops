@@ -421,3 +421,23 @@ Manual verification:
 - Apply a retention cleanup with at least one candidate and confirm a Yes/No warning appears.
 - Select a cloud backup package and click delete.
 - Confirm the cloud package warning appears before deletion.
+
+## Slice 23: Backup Cleanup Cancellation Coverage
+
+Goal:
+
+- Prove that choosing No in backup cleanup confirmation prompts leaves backup artifacts untouched.
+
+Automated tests:
+
+- Installed-app workflow cancels retention cleanup and confirms both local backup manifests remain.
+- Installed-app workflow cancels cloud backup package deletion and confirms the package remains.
+- Installed-app workflow cancels local backup deletion and confirms the selected backup directory remains.
+- The workflow then repeats each action with Yes to confirm the destructive path still works.
+
+Manual verification:
+
+- Trigger each backup cleanup prompt.
+- Choose No.
+- Confirm the status text reports cancellation.
+- Refresh the backup list and confirm the selected backup still exists.

@@ -143,10 +143,12 @@ function Invoke-Element {
     $pattern.Invoke()
 }
 
-function Invoke-ConfirmationYes {
+function Invoke-ConfirmationButton {
     param(
         [int]$ProcessId,
         [string]$Title,
+        [string]$ButtonName,
+        [string]$ButtonAutomationId,
         [int]$TimeoutSeconds = 20
     )
 
@@ -162,6 +164,10 @@ function Invoke-ConfirmationYes {
         $windows = $rootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants, $processCondition)
         for ($index = 0; $index -lt $windows.Count; $index++) {
             $candidate = $windows.Item($index)
+            if ($candidate.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window) {
+                continue
+            }
+
             if ($candidate.Current.Name -like "*$Title*" -or $candidate.Current.Name -like "*Delete*" -or $candidate.Current.Name -like "*cleanup*") {
                 return $candidate
             }
@@ -170,11 +176,11 @@ function Invoke-ConfirmationYes {
         return $null
     }
 
-    $yesButton = Wait-Until -Description "Yes button for '$Title'" -TimeoutSeconds $TimeoutSeconds -Condition {
+    $confirmationButton = Wait-Until -Description "$ButtonName button for '$Title'" -TimeoutSeconds $TimeoutSeconds -Condition {
         $buttons = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, $buttonCondition)
         for ($index = 0; $index -lt $buttons.Count; $index++) {
             $button = $buttons.Item($index)
-            if ($button.Current.Name -eq "Yes" -or $button.Current.AutomationId -eq "6") {
+            if ($button.Current.Name -eq $ButtonName -or $button.Current.AutomationId -eq $ButtonAutomationId) {
                 return $button
             }
         }
@@ -182,16 +188,18 @@ function Invoke-ConfirmationYes {
         return $null
     }
 
-    $pattern = $yesButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+    $pattern = $confirmationButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
     $pattern.Invoke()
 }
 
-function Invoke-ElementAndConfirmYes {
+function Invoke-ElementAndConfirm {
     param(
         [System.Windows.Automation.AutomationElement]$Window,
         [string]$AutomationId,
         [int]$ProcessId,
         [string]$ConfirmationTitle,
+        [string]$ButtonName,
+        [string]$ButtonAutomationId,
         [int]$TimeoutSeconds = 20
     )
 
@@ -206,7 +214,31 @@ function Invoke-ElementAndConfirmYes {
 
     $pattern = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
     $pattern.Invoke()
-    Invoke-ConfirmationYes -ProcessId $ProcessId -Title $ConfirmationTitle -TimeoutSeconds $TimeoutSeconds
+    Invoke-ConfirmationButton -ProcessId $ProcessId -Title $ConfirmationTitle -ButtonName $ButtonName -ButtonAutomationId $ButtonAutomationId -TimeoutSeconds $TimeoutSeconds
+}
+
+function Invoke-ElementAndConfirmYes {
+    param(
+        [System.Windows.Automation.AutomationElement]$Window,
+        [string]$AutomationId,
+        [int]$ProcessId,
+        [string]$ConfirmationTitle,
+        [int]$TimeoutSeconds = 20
+    )
+
+    Invoke-ElementAndConfirm -Window $Window -AutomationId $AutomationId -ProcessId $ProcessId -ConfirmationTitle $ConfirmationTitle -ButtonName "Yes" -ButtonAutomationId "6" -TimeoutSeconds $TimeoutSeconds
+}
+
+function Invoke-ElementAndConfirmNo {
+    param(
+        [System.Windows.Automation.AutomationElement]$Window,
+        [string]$AutomationId,
+        [int]$ProcessId,
+        [string]$ConfirmationTitle,
+        [int]$TimeoutSeconds = 20
+    )
+
+    Invoke-ElementAndConfirm -Window $Window -AutomationId $AutomationId -ProcessId $ProcessId -ConfirmationTitle $ConfirmationTitle -ButtonName "No" -ButtonAutomationId "7" -TimeoutSeconds $TimeoutSeconds
 }
 
 function Ensure-CheckboxChecked {
@@ -459,6 +491,12 @@ try {
     Set-ElementValue -Window $window -AutomationId "RetentionDeleteOlderThanDays" -Value "0"
     Invoke-Element -Window $window -AutomationId "PreviewLocalBackupRetentionButton"
     Find-TextContaining -Window $window -Text "Local backup retention preview: 1 snapshot" -TimeoutSeconds 30 | Out-Null
+    Invoke-ElementAndConfirmNo -Window $window -AutomationId "ApplyLocalBackupRetentionButton" -ProcessId $process.Id -ConfirmationTitle "Apply local backup retention cleanup?"
+    Find-TextContaining -Window $window -Text "Local backup retention cleanup cancelled" -TimeoutSeconds 30 | Out-Null
+    $backupManifestsAfterRetentionCancel = @(Get-ChildItem -Path $backupPath -Recurse -Filter "backup-manifest.json")
+    if ($backupManifestsAfterRetentionCancel.Count -ne 2) {
+        throw "Retention cleanup cancellation should leave two local backup manifests; found $($backupManifestsAfterRetentionCancel.Count)."
+    }
     Invoke-ElementAndConfirmYes -Window $window -AutomationId "ApplyLocalBackupRetentionButton" -ProcessId $process.Id -ConfirmationTitle "Apply local backup retention cleanup?"
     Find-TextContaining -Window $window -Text "Local backup retention cleanup deleted 1 snapshot" -TimeoutSeconds 30 | Out-Null
     $backupManifestsAfterRetention = @(Get-ChildItem -Path $backupPath -Recurse -Filter "backup-manifest.json")
@@ -495,6 +533,12 @@ try {
     if ($packageText.Contains("Republic v Online Sample Documents") -or $packageText.Contains("sample-online-pleading.docx")) {
         throw "Cloud backup package exposed matter or document details in plain text."
     }
+    Invoke-ElementAndConfirmNo -Window $window -AutomationId "DeleteSelectedCloudBackupButton" -ProcessId $process.Id -ConfirmationTitle "Delete cloud backup package?"
+    Find-TextContaining -Window $window -Text "Cloud backup snapshot delete cancelled" -TimeoutSeconds 30 | Out-Null
+    $cloudPackagesAfterCancel = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
+    if ($cloudPackagesAfterCancel.Count -ne 1) {
+        throw "Cloud backup delete cancellation should leave one package; found $($cloudPackagesAfterCancel.Count)."
+    }
     Invoke-ElementAndConfirmYes -Window $window -AutomationId "DeleteSelectedCloudBackupButton" -ProcessId $process.Id -ConfirmationTitle "Delete cloud backup package?"
     Find-TextContaining -Window $window -Text "Cloud backup snapshot deleted" -TimeoutSeconds 30 | Out-Null
     $cloudPackagesAfterDelete = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
@@ -502,6 +546,11 @@ try {
         throw "Cloud backup package remained after delete."
     }
 
+    Invoke-ElementAndConfirmNo -Window $window -AutomationId "DeleteSelectedLocalBackupButton" -ProcessId $process.Id -ConfirmationTitle "Delete local backup snapshot?"
+    Find-TextContaining -Window $window -Text "Local backup snapshot delete cancelled" -TimeoutSeconds 30 | Out-Null
+    if (-not (Test-Path $remainingBackupDirectory)) {
+        throw "Selected local backup directory was deleted after cancellation: $remainingBackupDirectory"
+    }
     Invoke-ElementAndConfirmYes -Window $window -AutomationId "DeleteSelectedLocalBackupButton" -ProcessId $process.Id -ConfirmationTitle "Delete local backup snapshot?"
     Find-TextContaining -Window $window -Text "Local backup snapshot deleted" -TimeoutSeconds 30 | Out-Null
     if (Test-Path $remainingBackupDirectory) {
