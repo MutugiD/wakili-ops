@@ -107,6 +107,8 @@ Completed:
 - Copy latest restore report path action backed by the Windows clipboard and installed-app clipboard verification.
 - Export latest restore report action with installed-app SHA-256 verification of the exported JSON report.
 - Cloud backup provider path safety validation against vault and local backup target overlap.
+- Backup inventory count summary for local/cloud snapshots in the status panel.
+- Installed-app Kenyan Judiciary public document corpus covering additional document and case-output types.
 
 ## SDK Requirement
 
@@ -150,3 +152,5 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 26. Slice 25: copy latest restore report path.
 27. Slice 26: export latest restore report.
 28. Slice 27: cloud backup provider path safety.
+29. Slice 28: backup inventory count summary.
+30. Slice 29: Kenyan Judiciary public document corpus.

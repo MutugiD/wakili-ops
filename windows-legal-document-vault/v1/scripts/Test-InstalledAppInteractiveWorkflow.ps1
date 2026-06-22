@@ -11,6 +11,15 @@ $ErrorActionPreference = "Stop"
 
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class NativeMouse {
+    [DllImport("user32.dll")]
+    public static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
+}
+"@
 
 $root = Split-Path -Parent $PSScriptRoot
 $installRoot = Join-Path $env:LOCALAPPDATA "Programs\WindowsLegalDocumentVault"
@@ -280,6 +289,69 @@ function Select-FirstListItem {
     return $item
 }
 
+function Select-ComboBoxItemByName {
+    param(
+        [System.Windows.Automation.AutomationElement]$Window,
+        [string]$AutomationId,
+        [string]$ItemName,
+        [int]$TimeoutSeconds = 20
+    )
+
+    $combo = Find-ElementByAutomationId -Window $Window -AutomationId $AutomationId -TimeoutSeconds $TimeoutSeconds
+    try {
+        $expand = $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+        if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded) {
+            $expand.Expand()
+        }
+    }
+    catch {
+        $combo.SetFocus()
+        [System.Windows.Forms.SendKeys]::SendWait("%{DOWN}")
+    }
+
+    $listItemCondition = New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+        [System.Windows.Automation.ControlType]::ListItem)
+
+    $item = Wait-Until -Description "combo item $ItemName in $AutomationId" -TimeoutSeconds $TimeoutSeconds -Condition {
+        $items = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+            [System.Windows.Automation.TreeScope]::Descendants,
+            $listItemCondition)
+        for ($index = 0; $index -lt $items.Count; $index++) {
+            $candidate = $items.Item($index)
+            if ($candidate.Current.Name -eq $ItemName) {
+                return $candidate
+            }
+        }
+
+        return $null
+    }
+
+    try {
+        $selection = $item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+        $selection.Select()
+    }
+    catch {
+        try {
+            $invoke = $item.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+            $invoke.Invoke()
+        }
+        catch {
+            $rect = $item.Current.BoundingRectangle
+            if ($rect.Width -le 0 -or $rect.Height -le 0) {
+                throw "Combo item $ItemName has no clickable bounds."
+            }
+
+            [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(
+                [int]($rect.X + ($rect.Width / 2)),
+                [int]($rect.Y + ($rect.Height / 2)))
+            [NativeMouse]::mouse_event(0x0002, 0, 0, 0, 0)
+            Start-Sleep -Milliseconds 100
+            [NativeMouse]::mouse_event(0x0004, 0, 0, 0, 0)
+        }
+    }
+}
+
 function Download-OnlineDocuments {
     param([string]$DocumentRoot)
 
@@ -288,12 +360,50 @@ function Download-OnlineDocuments {
         @{
             Name = "sample-online-pleading.docx"
             Url = "https://raw.githubusercontent.com/rounakdatta/CorrectLy/master/sample.docx"
-            Source = "GitHub raw sample DOCX"
+            Source = "GitHub raw sample DOCX for Word drafting coverage"
+            Category = "Word draft pleading"
         },
         @{
-            Name = "sample-online-court-output.pdf"
-            Url = "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf"
-            Source = "Trinity College sample PDF"
+            Name = "judiciary-coa-registry-manual.pdf"
+            Url = "https://judiciary.go.ke/wp-content/uploads/2023/07/COA-REG-Manual.pdf"
+            Source = "Kenya Judiciary Court of Appeal Registry Manual"
+            Category = "Registry/authority material"
+        },
+        @{
+            Name = "judiciary-coa-automation-guide.pdf"
+            Url = "https://judiciary.go.ke/wp-content/uploads/2023/07/coa-guide-for-print-3.pdf"
+            Source = "Kenya Judiciary Court of Appeal Automation Guide"
+            Category = "Court automation/e-filing guide"
+        },
+        @{
+            Name = "supreme-court-general-practice-directions-2020.pdf"
+            Url = "https://supremecourt.judiciary.go.ke/wp-content/uploads/2022/11/Supreme-Court-General-Practice-Directions-of-2020.pdf"
+            Source = "Supreme Court of Kenya General Practice Directions 2020"
+            Category = "Practice directions"
+        },
+        @{
+            Name = "supreme-court-virtual-session-practice-directions-2023.pdf"
+            Url = "https://supremecourt.judiciary.go.ke/wp-content/uploads/2024/07/Supreme-Court-Virtual-Session-Practice-Directions-2023.pdf"
+            Source = "Supreme Court of Kenya Virtual Session Practice Directions 2023"
+            Category = "Virtual court practice directions"
+        },
+        @{
+            Name = "supreme-court-self-representing-litigants-e-guide.pdf"
+            Url = "https://supremecourt.judiciary.go.ke/wp-content/uploads/2025/06/SUPREME-COURT-OF-KENYA-SELF-REPRESENTING-LITIGANTS-E-GUIDE.pdf"
+            Source = "Supreme Court of Kenya Self Representing Litigants E-Guide"
+            Category = "Litigant guide"
+        },
+        @{
+            Name = "supreme-court-bia-tosha-judgment.pdf"
+            Url = "https://supremecourt.judiciary.go.ke/wp-content/uploads/2026/06/Bia-Tosha-Distributors-Limited-Vs-Kenya-Breweries-Limited-6-Others-SC-Petition-No-15-of-2020-Judgment-17th-February-2023.pdf"
+            Source = "Supreme Court of Kenya judgment PDF"
+            Category = "Judgment"
+        },
+        @{
+            Name = "supreme-court-charles-kanjama-ruling.pdf"
+            Url = "https://supremecourt.judiciary.go.ke/wp-content/uploads/2026/06/Charles-Kanjama-Vs-the-AG-82-others-SC-Petition-Application-E017-of-2021-Ruling-19th-May-2022.pdf"
+            Source = "Supreme Court of Kenya ruling PDF"
+            Category = "Ruling"
         }
     )
 
@@ -303,9 +413,47 @@ function Download-OnlineDocuments {
         if ((Get-Item $target).Length -le 0) {
             throw "Downloaded file is empty: $target"
         }
+        if ($document.Name.EndsWith(".pdf", [System.StringComparison]::OrdinalIgnoreCase)) {
+            $header = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($target), 0, 4)
+            if ($header -ne "%PDF") {
+                throw "Downloaded file is not a PDF: $target"
+            }
+        }
     }
 
     $documents | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $DocumentRoot "online-document-sources.json")
+}
+
+function Import-MatterDocument {
+    param(
+        [System.Windows.Automation.AutomationElement]$Window,
+        [string]$SourcePath,
+        [string]$DocumentType,
+        [string]$RecoveryKey,
+        [int]$TimeoutSeconds = 60
+    )
+
+    Select-ComboBoxItemByName -Window $Window -AutomationId "DocumentTypeCombo" -ItemName $DocumentType
+    Set-ElementValue -Window $Window -AutomationId "ImportSourceFilePath" -Value $SourcePath
+    Set-ElementValue -Window $Window -AutomationId "ImportRecoveryKey" -Value $RecoveryKey
+    Invoke-Element -Window $Window -AutomationId "ImportMatterDocumentButton"
+    Find-TextContaining -Window $Window -Text "Imported $(Split-Path -Leaf $SourcePath)" -TimeoutSeconds $TimeoutSeconds | Out-Null
+}
+
+function Capture-CourtOutput {
+    param(
+        [System.Windows.Automation.AutomationElement]$Window,
+        [string]$SourcePath,
+        [string]$OutputType,
+        [string]$RecoveryKey,
+        [int]$TimeoutSeconds = 60
+    )
+
+    Select-ComboBoxItemByName -Window $Window -AutomationId "CourtOutputTypeCombo" -ItemName $OutputType
+    Set-ElementValue -Window $Window -AutomationId "CourtOutputSourceFilePath" -Value $SourcePath
+    Set-ElementValue -Window $Window -AutomationId "ImportRecoveryKey" -Value $RecoveryKey
+    Invoke-Element -Window $Window -AutomationId "CaptureCourtOutputButton"
+    Find-TextContaining -Window $Window -Text "Captured ${OutputType}" -TimeoutSeconds $TimeoutSeconds | Out-Null
 }
 
 function Install-PackageIfNeeded {
@@ -407,10 +555,7 @@ try {
     Select-FirstListItem -Window $window -AutomationId "MattersList" | Out-Null
 
     $docxPath = Join-Path $documentsRoot "sample-online-pleading.docx"
-    Set-ElementValue -Window $window -AutomationId "ImportSourceFilePath" -Value $docxPath
-    Set-ElementValue -Window $window -AutomationId "ImportRecoveryKey" -Value $RecoveryKey
-    Invoke-Element -Window $window -AutomationId "ImportMatterDocumentButton"
-    Find-TextContaining -Window $window -Text "Imported sample-online-pleading.docx" -TimeoutSeconds 45 | Out-Null
+    Import-MatterDocument -Window $window -SourcePath $docxPath -DocumentType "Pleading" -RecoveryKey $RecoveryKey
     Select-FirstListItem -Window $window -AutomationId "DocumentsList" | Out-Null
 
     Invoke-Element -Window $window -AutomationId "IndexSelectedDocumentButton"
@@ -419,12 +564,16 @@ try {
     Invoke-Element -Window $window -AutomationId "SearchMatterButton"
     Find-TextContaining -Window $window -Text "Search returned 1" -TimeoutSeconds 30 | Out-Null
 
-    $pdfPath = Join-Path $documentsRoot "sample-online-court-output.pdf"
+    Import-MatterDocument -Window $window -SourcePath (Join-Path $documentsRoot "judiciary-coa-registry-manual.pdf") -DocumentType "Authority" -RecoveryKey $RecoveryKey
+    Import-MatterDocument -Window $window -SourcePath (Join-Path $documentsRoot "supreme-court-general-practice-directions-2020.pdf") -DocumentType "Notice" -RecoveryKey $RecoveryKey
+
+    $pdfPath = Join-Path $documentsRoot "judiciary-coa-automation-guide.pdf"
     $scanPdfPath = Join-Path $scanPath "queued-online-scan.pdf"
     Copy-Item -LiteralPath $pdfPath -Destination $scanPdfPath -Force
     Invoke-Element -Window $window -AutomationId "RefreshScanFolderButton"
     Find-TextContaining -Window $window -Text "Scan folder refreshed: 1 queued" -TimeoutSeconds 45 | Out-Null
     Select-FirstListItem -Window $window -AutomationId "ScanInboxList" | Out-Null
+    Select-ComboBoxItemByName -Window $window -AutomationId "DocumentTypeCombo" -ItemName "Annexure"
     Set-ElementValue -Window $window -AutomationId "ImportRecoveryKey" -Value $RecoveryKey
     Invoke-Element -Window $window -AutomationId "ImportSelectedScanButton"
     Find-TextContaining -Window $window -Text "Imported scan queued-online-scan.pdf" -TimeoutSeconds 45 | Out-Null
@@ -439,10 +588,9 @@ try {
         throw "Filing-pack manifest was not created."
     }
 
-    Set-ElementValue -Window $window -AutomationId "CourtOutputSourceFilePath" -Value $pdfPath
-    Set-ElementValue -Window $window -AutomationId "ImportRecoveryKey" -Value $RecoveryKey
-    Invoke-Element -Window $window -AutomationId "CaptureCourtOutputButton"
-    Find-TextContaining -Window $window -Text "Captured FilingReceipt" -TimeoutSeconds 45 | Out-Null
+    Capture-CourtOutput -Window $window -SourcePath (Join-Path $documentsRoot "supreme-court-virtual-session-practice-directions-2023.pdf") -OutputType "Notice" -RecoveryKey $RecoveryKey
+    Capture-CourtOutput -Window $window -SourcePath (Join-Path $documentsRoot "supreme-court-charles-kanjama-ruling.pdf") -OutputType "Ruling" -RecoveryKey $RecoveryKey
+    Capture-CourtOutput -Window $window -SourcePath (Join-Path $documentsRoot "supreme-court-bia-tosha-judgment.pdf") -OutputType "Judgment" -RecoveryKey $RecoveryKey
 
     Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
     Invoke-Element -Window $window -AutomationId "RunBackupButton"
@@ -454,6 +602,7 @@ try {
     Invoke-Element -Window $window -AutomationId "RefreshLocalBackupsButton"
     Find-TextContaining -Window $window -Text "Local backup list refreshed" -TimeoutSeconds 30 | Out-Null
     Find-TextContaining -Window $window -Text "Backup health: Healthy: local backup snapshot is available" -TimeoutSeconds 30 | Out-Null
+    Find-TextContaining -Window $window -Text "Backup snapshots: local 1, cloud 0" -TimeoutSeconds 30 | Out-Null
     Find-TextContaining -Window $window -Text "Last local backup:" -TimeoutSeconds 30 | Out-Null
     Select-FirstListItem -Window $window -AutomationId "LocalBackupsList" | Out-Null
     Set-ElementValue -Window $window -AutomationId "LocalRestoreTargetPath" -Value $localRestorePath
@@ -518,6 +667,7 @@ try {
     Invoke-Element -Window $window -AutomationId "UploadCloudBackupButton"
     Find-TextContaining -Window $window -Text "Cloud backup uploaded encrypted snapshot" -TimeoutSeconds 60 | Out-Null
     Find-TextContaining -Window $window -Text "Backup health: Healthy: local and cloud backup snapshots are available" -TimeoutSeconds 30 | Out-Null
+    Find-TextContaining -Window $window -Text "Backup snapshots: local 2, cloud 1" -TimeoutSeconds 30 | Out-Null
     Find-TextContaining -Window $window -Text "Last cloud backup:" -TimeoutSeconds 30 | Out-Null
     Invoke-Element -Window $window -AutomationId "RefreshCloudBackupsButton"
     Find-TextContaining -Window $window -Text "Cloud backup list refreshed" -TimeoutSeconds 30 | Out-Null

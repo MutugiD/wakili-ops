@@ -85,6 +85,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _cloudBackupEnabled;
     private bool _isSetupComplete;
     private string _backupHealthStatus = "Backup health: setup incomplete.";
+    private string _backupSnapshotCountsText = "Backup snapshots: local 0, cloud 0";
     private string _lastLocalBackupText = "Last local backup: none";
     private string _lastCloudBackupText = "Last cloud backup: none";
     private string _lastRestoreReportText = "Last restore report: none";
@@ -467,6 +468,12 @@ public sealed class MainWindowViewModel : ObservableObject
         private set => SetProperty(ref _backupHealthStatus, value);
     }
 
+    public string BackupSnapshotCountsText
+    {
+        get => _backupSnapshotCountsText;
+        private set => SetProperty(ref _backupSnapshotCountsText, value);
+    }
+
     public string LastLocalBackupText
     {
         get => _lastLocalBackupText;
@@ -752,7 +759,8 @@ public sealed class MainWindowViewModel : ObservableObject
             SelectedMatter.Id,
             ImportSourceFilePath,
             VaultPath,
-            ImportRecoveryKey);
+            ImportRecoveryKey,
+            SelectedDocumentType);
 
         var result = await _documentImportService.ImportAsync(request, CancellationToken.None);
         if (!result.Succeeded || result.Value is null)
@@ -807,7 +815,8 @@ public sealed class MainWindowViewModel : ObservableObject
             SelectedMatter.Id,
             SelectedScan.SourcePath,
             VaultPath,
-            ImportRecoveryKey);
+            ImportRecoveryKey,
+            SelectedDocumentType);
 
         var result = await _documentImportService.ImportAsync(request, CancellationToken.None);
         if (!result.Succeeded || result.Value is null)
@@ -1305,6 +1314,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
         BackupRecoveryKey = string.Empty;
         StatusMessage = $"Cloud backup uploaded encrypted snapshot {upload.Value.Metadata.SnapshotId}.";
+        await ReloadLocalBackupsAsync();
         await ReloadCloudBackupsAsync(upload.Value.Metadata.SnapshotId);
     }
 
@@ -1688,6 +1698,7 @@ public sealed class MainWindowViewModel : ObservableObject
             DateTimeOffset.UtcNow);
 
         BackupHealthStatus = $"Backup health: {health.BackupStatus}";
+        BackupSnapshotCountsText = $"Backup snapshots: local {localSnapshots.Length:N0}, cloud {cloudSnapshots.Length:N0}";
         LastLocalBackupText = health.LastLocalBackupAt is null
             ? "Last local backup: none"
             : $"Last local backup: {health.LastLocalBackupAt.Value.ToLocalTime():yyyy-MM-dd HH:mm}";

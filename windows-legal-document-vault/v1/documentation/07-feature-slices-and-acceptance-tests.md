@@ -520,3 +520,42 @@ Manual verification:
 - Confirm the app refuses the path.
 - Repeat with a folder inside the local backup target.
 - Use a separate folder and confirm cloud backup can be enabled.
+
+## Slice 28: Backup Inventory Count Summary
+
+Goal:
+
+- Show local and cloud backup snapshot counts in the status panel.
+
+Automated tests:
+
+- Installed-app workflow verifies the count summary after the first local backup.
+- Installed-app workflow verifies the count summary after cloud upload.
+- Cloud upload refreshes the local backup catalog so the local count includes the upload-created local snapshot.
+
+Manual verification:
+
+- Run a local backup.
+- Confirm the status panel shows one local backup and zero cloud backups.
+- Upload a cloud backup.
+- Confirm the status panel shows local and cloud counts.
+
+## Slice 29: Kenyan Judiciary Public Document Corpus
+
+Goal:
+
+- Expand installed-app end-to-end testing with public Kenyan Judiciary and Supreme Court documents across more document/case types.
+
+Automated tests:
+
+- Installed-app workflow downloads public Kenyan Judiciary/Supreme Court PDFs at runtime.
+- Manual import uses selected document types for pleading, authority, and notice-style material.
+- Scan inbox imports a Judiciary PDF as an annexure.
+- Court-output capture covers notice, ruling, and judgment PDFs.
+- The downloaded source manifest is written to `online-document-sources.json`.
+
+Manual verification:
+
+- Run the installed-app workflow.
+- Confirm downloaded files appear under the workflow `online-documents` folder.
+- Confirm the matter document list contains imported Word, registry/manual, practice-direction, scan, ruling, and judgment files.

@@ -429,11 +429,16 @@
                                    FontWeight="SemiBold"
                                    Foreground="#111827"
                                    Margin="0,16,0,0" />
+                        <TextBlock Text="{Binding BackupSnapshotCountsText}"
+                                   AutomationProperties.AutomationId="BackupSnapshotCountsText"
+                                   TextWrapping="Wrap"
+                                   Foreground="#374151"
+                                   Margin="0,4,0,0" />
                         <TextBlock Text="{Binding LastLocalBackupText}"
                                    AutomationProperties.AutomationId="LastLocalBackupText"
                                    TextWrapping="Wrap"
                                    Foreground="#374151"
-                                   Margin="0,4,0,0" />
+                                   Margin="0,2,0,0" />
                         <TextBlock Text="{Binding LastCloudBackupText}"
                                    AutomationProperties.AutomationId="LastCloudBackupText"
                                    TextWrapping="Wrap"

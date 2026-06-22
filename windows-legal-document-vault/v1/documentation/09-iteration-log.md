@@ -45,6 +45,8 @@ This log tracks V1 planning and implementation progress.
 | 25 | Copy latest restore report path | Complete | Status panel action copies the latest restore verification report path to the Windows clipboard and installed-app workflow verifies the clipboard value. |
 | 26 | Export latest restore report | Complete | Status panel can export the latest restore report to a chosen folder, with installed-app hash verification against the source report. |
 | 27 | Cloud backup provider path safety | Complete | Cloud provider folders are rejected when they overlap the encrypted vault or local backup target, with core and installed-app coverage. |
+| 28 | Backup inventory count summary | Complete | Status panel now shows local/cloud backup counts and cloud upload refreshes local backup inventory after creating its staging snapshot. |
+| 29 | Kenyan Judiciary public document corpus | Complete | Installed-app workflow now downloads public Kenyan Judiciary/Supreme Court PDFs and exercises pleading, authority, notice, annexure, ruling, and judgment-style paths. |
 
 ## Deferred From V1
 

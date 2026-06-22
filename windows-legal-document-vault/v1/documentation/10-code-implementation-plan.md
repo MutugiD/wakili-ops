@@ -664,6 +664,33 @@ Verification:
 - `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Cloud backup provider path"`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Backup Inventory Count Summary
+
+Implemented:
+
+- `BackupSnapshotCountsText` status-panel state.
+- UI binding for local/cloud backup count summary.
+- Cloud upload now refreshes local backup inventory after creating the local staging snapshot.
+- Installed-app workflow assertions for count summary after local backup and cloud upload.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
+## Completed Slice: Kenyan Judiciary Public Document Corpus
+
+Implemented:
+
+- Runtime download corpus expanded to public Kenyan Judiciary and Supreme Court PDFs.
+- Source manifest records each URL, source, and document category.
+- Manual import now persists the selected document type.
+- Scan inbox import now persists the selected document type.
+- Installed-app workflow covers pleading, authority, notice, annexure, ruling, and judgment-style documents.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.

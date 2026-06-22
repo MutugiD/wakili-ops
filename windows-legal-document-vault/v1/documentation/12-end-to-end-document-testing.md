@@ -22,8 +22,14 @@ The installed-app interactive test downloads public sample files at runtime so t
 
 Current sources:
 
-- DOCX sample: `https://raw.githubusercontent.com/rounakdatta/CorrectLy/master/sample.docx`
-- PDF sample: `https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf`
+- DOCX sample for Word drafting coverage: `https://raw.githubusercontent.com/rounakdatta/CorrectLy/master/sample.docx`
+- Kenya Judiciary Court of Appeal Registry Manual: `https://judiciary.go.ke/wp-content/uploads/2023/07/COA-REG-Manual.pdf`
+- Kenya Judiciary Court of Appeal Automation Guide: `https://judiciary.go.ke/wp-content/uploads/2023/07/coa-guide-for-print-3.pdf`
+- Supreme Court General Practice Directions 2020: `https://supremecourt.judiciary.go.ke/wp-content/uploads/2022/11/Supreme-Court-General-Practice-Directions-of-2020.pdf`
+- Supreme Court Virtual Session Practice Directions 2023: `https://supremecourt.judiciary.go.ke/wp-content/uploads/2024/07/Supreme-Court-Virtual-Session-Practice-Directions-2023.pdf`
+- Supreme Court Self Representing Litigants E-Guide: `https://supremecourt.judiciary.go.ke/wp-content/uploads/2025/06/SUPREME-COURT-OF-KENYA-SELF-REPRESENTING-LITIGANTS-E-GUIDE.pdf`
+- Supreme Court Bia Tosha judgment PDF: `https://supremecourt.judiciary.go.ke/wp-content/uploads/2026/06/Bia-Tosha-Distributors-Limited-Vs-Kenya-Breweries-Limited-6-Others-SC-Petition-No-15-of-2020-Judgment-17th-February-2023.pdf`
+- Supreme Court Charles Kanjama ruling PDF: `https://supremecourt.judiciary.go.ke/wp-content/uploads/2026/06/Charles-Kanjama-Vs-the-AG-82-others-SC-Petition-Application-E017-of-2021-Ruling-19th-May-2022.pdf`
 
 Run:
 
@@ -36,8 +42,9 @@ Expected workflow coverage:
 
 - Installed `.exe` starts from `%LOCALAPPDATA%\Programs\WindowsLegalDocumentVault`.
 - First-run setup is completed through WPF controls.
-- The online DOCX is imported, encrypted, indexed, and searched.
-- The online PDF is copied into the watched scan folder, queued, and imported through Scan Inbox.
+- The online DOCX is imported as a pleading, encrypted, indexed, and searched.
+- Court of Appeal and Supreme Court public PDFs are imported as authority, notice, annexure, ruling, and judgment-style documents.
+- A Judiciary PDF is copied into the watched scan folder, queued, and imported through Scan Inbox.
 - The matter is exported as a filing pack.
 - Backup snapshot and restore drill complete.
 - Local backup snapshot list refreshes.
