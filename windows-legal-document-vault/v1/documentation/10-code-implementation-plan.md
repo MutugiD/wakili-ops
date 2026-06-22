@@ -577,8 +577,24 @@ Verification:
 - `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "retention"`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Backup Cleanup Confirmation Prompts
+
+Implemented:
+
+- `IUserConfirmationService` abstraction for destructive UI confirmations.
+- WPF `MessageBox` confirmation service for the installed desktop app.
+- Confirmation prompt before selected local backup deletion.
+- Confirmation prompt before local retention cleanup when delete candidates exist.
+- Confirmation prompt before selected cloud backup package deletion.
+- Installed-app automation that clicks the real Yes/No confirmation dialogs during the backup cleanup workflow.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+- Full build/test/security gate before merge.
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Backup cleanup confirmation prompts.
+2. Backup cleanup cancellation test coverage.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

@@ -100,6 +100,8 @@ Completed:
 - Installed app interactive E2E verifies backup cleanup leaves the live vault intact.
 - Local backup retention preview/apply policy with keep-latest and delete-older-than controls.
 - Installed app interactive E2E verifies retention cleanup reduces two local backups to one retained snapshot.
+- Confirmation prompts before local backup deletion, retention cleanup, and cloud backup package deletion.
+- Installed app interactive E2E clicks real backup cleanup confirmation dialogs.
 
 ## SDK Requirement
 
@@ -137,3 +139,4 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 20. Slice 19: backup health summary.
 21. Slice 20: backup retention and cleanup.
 22. Slice 21: local backup retention policy automation.
+23. Slice 22: backup cleanup confirmation prompts.

@@ -39,13 +39,14 @@ This log tracks V1 planning and implementation progress.
 | 19 | Backup health summary | Complete | Home status panel shows local/cloud backup health, last local backup time, and last cloud backup time. |
 | 20 | Backup retention and cleanup | Complete | Selected local backup delete, selected cloud backup delete, safety checks, and installed-app vault preservation verification. |
 | 21 | Local backup retention policy automation | Complete | Keep-latest/delete-older-than preview and apply flow for local backup cleanup, with installed-app verification. |
+| 22 | Backup cleanup confirmation prompts | Complete | Local backup delete, cloud package delete, and retention cleanup now require explicit Yes/No confirmation in the Windows app and installed-app workflow. |
 
 ## Deferred From V1
 
 | Item | Reason |
 | --- | --- |
 | Direct Judiciary portal automation | Legal, operational, and authentication risk. |
-| Production cloud backup upload | Future opt-in provider after local backup and admin licensing are reliable. |
+| Production cloud backup upload | Future opt-in provider after provider choice and account model are reliable. |
 | Direct TWAIN/WIA scanner control | Watched folder support is simpler and more compatible for V1. |
 | Local Matter RAG Connector | Depends on trustworthy document vault and OCR/search foundation. |
 | Wakili-Mkononi Matter AI Integration | Depends on Local Matter RAG Connector. |

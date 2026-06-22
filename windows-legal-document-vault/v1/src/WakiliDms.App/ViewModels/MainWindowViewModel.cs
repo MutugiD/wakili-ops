@@ -42,6 +42,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly RestoreVerificationReportService _restoreVerificationReportService;
     private readonly CloudBackupService _cloudBackupService;
     private readonly InstallationControlService _installationControlService;
+    private readonly IUserConfirmationService _confirmationService;
     private AppSettings? _currentSettings;
     private string _firmName = string.Empty;
     private string _primaryUser = string.Empty;
@@ -96,7 +97,8 @@ public sealed class MainWindowViewModel : ObservableObject
         IScanInboxRepository scanInboxRepository,
         IDocumentSearchRepository documentSearchRepository,
         IDocumentTextExtractor documentTextExtractor,
-        IVaultService vaultService)
+        IVaultService vaultService,
+        IUserConfirmationService? confirmationService = null)
     {
         _databasePath = databasePath;
         _settingsStore = settingsStore;
@@ -106,6 +108,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _scanInboxRepository = scanInboxRepository;
         _documentSearchRepository = documentSearchRepository;
         _vaultService = vaultService;
+        _confirmationService = confirmationService ?? AllowAllUserConfirmationService.Instance;
         _documentImportService = new DocumentImportService(_matterRepository, _documentRepository, _documentVersionRepository, _vaultService);
         _scanFolderService = new ScanFolderService(_scanInboxRepository);
         _documentIndexingService = new DocumentIndexingService(_documentRepository, _vaultService, documentTextExtractor, _documentSearchRepository);
@@ -1053,6 +1056,14 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         var snapshotId = SelectedLocalBackupSnapshot.SnapshotId;
+        if (!_confirmationService.ConfirmDestructiveAction(
+            "Delete local backup snapshot?",
+            $"Delete local backup snapshot {snapshotId}? This removes the selected backup copy but does not delete the live vault."))
+        {
+            StatusMessage = $"Local backup snapshot delete cancelled: {snapshotId}.";
+            return;
+        }
+
         var result = _localBackupDeletionService.DeleteSnapshot(
             BackupTargetPath,
             SelectedLocalBackupSnapshot.BackupDirectory);
@@ -1101,6 +1112,26 @@ public sealed class MainWindowViewModel : ObservableObject
             RetentionPreviewText = plan.Error ?? "Local backup retention cleanup failed.";
             StatusMessage = RetentionPreviewText;
             return;
+        }
+
+        if (plan.Value.DeleteCandidates.Count > 0)
+        {
+            var candidateSummary = string.Join(
+                ", ",
+                plan.Value.DeleteCandidates.Take(3).Select(candidate => candidate.SnapshotId));
+            if (plan.Value.DeleteCandidates.Count > 3)
+            {
+                candidateSummary += $", plus {plan.Value.DeleteCandidates.Count - 3:N0} more";
+            }
+
+            if (!_confirmationService.ConfirmDestructiveAction(
+                "Apply local backup retention cleanup?",
+                $"Delete {plan.Value.DeleteCandidates.Count:N0} local backup snapshot(s): {candidateSummary}? This cannot be undone from the app."))
+            {
+                RetentionPreviewText = "Local backup retention cleanup cancelled.";
+                StatusMessage = RetentionPreviewText;
+                return;
+            }
         }
 
         var deletedCount = 0;
@@ -1338,6 +1369,14 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         var snapshotId = SelectedCloudBackupSnapshot.SnapshotId;
+        if (!_confirmationService.ConfirmDestructiveAction(
+            "Delete cloud backup package?",
+            $"Delete cloud backup package {snapshotId}? This removes the provider package copy but does not delete the live vault."))
+        {
+            StatusMessage = $"Cloud backup snapshot delete cancelled: {snapshotId}.";
+            return;
+        }
+
         var provider = new LocalFilesystemCloudBackupProvider(CloudBackupProviderPath);
         var result = await provider.DeleteSnapshotAsync(
             _currentSettings!.InstallationId,

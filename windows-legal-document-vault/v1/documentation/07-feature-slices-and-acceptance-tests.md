@@ -400,3 +400,24 @@ Manual verification:
 - Preview cleanup.
 - Apply cleanup.
 - Confirm retained backup snapshots remain restorable.
+
+## Slice 22: Backup Cleanup Confirmation Prompts
+
+Goal:
+
+- Require explicit user confirmation before destructive local backup cleanup, local backup snapshot deletion, or cloud backup package deletion.
+
+Automated tests:
+
+- Installed-app workflow clicks the real confirmation dialog before retention cleanup.
+- Installed-app workflow clicks the real confirmation dialog before cloud backup package deletion.
+- Installed-app workflow clicks the real confirmation dialog before selected local backup deletion.
+- Existing deletion and retention tests continue to prove only selected/eligible backup artifacts are removed.
+
+Manual verification:
+
+- Select a local backup and click delete.
+- Confirm a Yes/No warning appears before deletion.
+- Apply a retention cleanup with at least one candidate and confirm a Yes/No warning appears.
+- Select a cloud backup package and click delete.
+- Confirm the cloud package warning appears before deletion.

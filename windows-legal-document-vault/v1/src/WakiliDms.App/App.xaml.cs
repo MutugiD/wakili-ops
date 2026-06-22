@@ -33,7 +33,8 @@ public partial class App : Application
             scanInboxRepository,
             documentSearchRepository,
             documentTextExtractor,
-            vaultService);
+            vaultService,
+            new WpfUserConfirmationService());
         await viewModel.LoadAsync();
 
         var window = new MainWindow(viewModel);
