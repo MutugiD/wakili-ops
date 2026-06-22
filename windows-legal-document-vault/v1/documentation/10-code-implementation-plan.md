@@ -635,8 +635,22 @@ Verification:
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Export Latest Restore Report
+
+Implemented:
+
+- Restore report export folder field.
+- `ExportLastRestoreReportCommand`.
+- Timestamped exported restore report copy.
+- Installed-app workflow check that the exported report exists.
+- Installed-app workflow SHA-256 comparison between source and exported report.
+
+Verification:
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Restore report file opener convenience.
+2. Restore report open/reveal convenience after UI strategy is chosen.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

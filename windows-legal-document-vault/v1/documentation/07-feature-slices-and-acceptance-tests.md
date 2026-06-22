@@ -479,3 +479,23 @@ Manual verification:
 - Run any restore drill.
 - Click `Copy latest restore report path`.
 - Paste into File Explorer, a terminal, or a message and confirm it points to the report file.
+
+## Slice 26: Export Latest Restore Report
+
+Goal:
+
+- Let the user copy the latest restore verification report into a chosen export folder.
+
+Automated tests:
+
+- Installed-app workflow sets a restore report export folder.
+- Installed-app workflow clicks `Export latest restore report`.
+- Installed-app workflow verifies one exported report file exists.
+- Installed-app workflow verifies the exported report SHA-256 hash matches the source restore report.
+
+Manual verification:
+
+- Run any restore drill.
+- Choose a restore report export folder.
+- Click `Export latest restore report`.
+- Confirm the exported JSON file opens and matches the original restore report.

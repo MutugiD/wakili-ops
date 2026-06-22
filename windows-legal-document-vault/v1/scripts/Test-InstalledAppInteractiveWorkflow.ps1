@@ -352,10 +352,11 @@ $externalBackupPath = Join-Path $testRootFull "ExternalMachineBackup"
 $externalRestorePath = Join-Path $testRootFull "ExternalRestore"
 $cloudProviderPath = Join-Path $testRootFull "CloudProvider"
 $cloudRestorePath = Join-Path $testRootFull "CloudRestore"
+$restoreReportExportPath = Join-Path $testRootFull "RestoreReportExports"
 $filingExportPath = Join-Path $testRootFull "FilingExports"
 $appDataPath = Join-Path $testRootFull "AppData"
 
-New-Item -ItemType Directory -Path $vaultPath, $scanPath, $backupPath, $localRestorePath, $externalBackupPath, $externalRestorePath, $cloudProviderPath, $cloudRestorePath, $filingExportPath, $appDataPath -Force | Out-Null
+New-Item -ItemType Directory -Path $vaultPath, $scanPath, $backupPath, $localRestorePath, $externalBackupPath, $externalRestorePath, $cloudProviderPath, $cloudRestorePath, $restoreReportExportPath, $filingExportPath, $appDataPath -Force | Out-Null
 Download-OnlineDocuments -DocumentRoot $documentsRoot
 Install-PackageIfNeeded
 
@@ -533,6 +534,18 @@ try {
     if ($clipboardText -ne $cloudRestoreReports[0].FullName) {
         throw "Clipboard did not contain the latest restore report path. Expected '$($cloudRestoreReports[0].FullName)' but found '$clipboardText'."
     }
+    Set-ElementValue -Window $window -AutomationId "RestoreReportExportFolderPath" -Value $restoreReportExportPath
+    Invoke-Element -Window $window -AutomationId "ExportLastRestoreReportButton"
+    Find-TextContaining -Window $window -Text "Latest restore verification report exported" -TimeoutSeconds 30 | Out-Null
+    $exportedRestoreReports = @(Get-ChildItem -Path $restoreReportExportPath -Filter "restore-verification-report-*.json")
+    if ($exportedRestoreReports.Count -ne 1) {
+        throw "Expected one exported restore report; found $($exportedRestoreReports.Count)."
+    }
+    $sourceReportHash = (Get-FileHash -LiteralPath $cloudRestoreReports[0].FullName -Algorithm SHA256).Hash
+    $exportedReportHash = (Get-FileHash -LiteralPath $exportedRestoreReports[0].FullName -Algorithm SHA256).Hash
+    if ($sourceReportHash -ne $exportedReportHash) {
+        throw "Exported restore report hash did not match the source report."
+    }
     $cloudPackages = @(Get-ChildItem -Path $cloudProviderPath -Recurse -Filter "snapshot.package")
     if ($cloudPackages.Count -eq 0) {
         throw "Cloud backup package was not created."
@@ -594,6 +607,7 @@ try {
         ExternalRestoreReportCount = $externalRestoreReports.Count
         BackupManifestCountAfterRetention = $backupManifestsAfterRetention.Count
         CloudRestoreReportCount = $cloudRestoreReports.Count
+        ExportedRestoreReportCount = $exportedRestoreReports.Count
         CloudBackupPackageCount = $cloudPackages.Count
         CloudBackupPackageCountAfterDelete = $cloudPackagesAfterDelete.Count
         UsedDefaultUserAppData = [bool]$UseDefaultUserAppData

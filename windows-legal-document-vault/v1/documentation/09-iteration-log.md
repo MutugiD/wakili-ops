@@ -43,6 +43,7 @@ This log tracks V1 planning and implementation progress.
 | 23 | Backup cleanup cancellation coverage | Complete | Installed-app workflow chooses No before Yes for retention cleanup, cloud package delete, and local backup delete, proving cancellation preserves artifacts. |
 | 24 | Restore report status summary | Complete | Status panel now keeps the latest restore verification report summary visible across local, external, and cloud restore drills. |
 | 25 | Copy latest restore report path | Complete | Status panel action copies the latest restore verification report path to the Windows clipboard and installed-app workflow verifies the clipboard value. |
+| 26 | Export latest restore report | Complete | Status panel can export the latest restore report to a chosen folder, with installed-app hash verification against the source report. |
 
 ## Deferred From V1
 

@@ -450,6 +450,15 @@
                                 HorizontalAlignment="Left"
                                 Padding="12,6"
                                 Margin="0,8,0,0" />
+                        <TextBlock Text="Restore report export folder" Margin="0,10,0,4" />
+                        <TextBox AutomationProperties.AutomationId="RestoreReportExportFolderPath"
+                                 Text="{Binding RestoreReportExportFolderPath, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Content="Export latest restore report"
+                                AutomationProperties.AutomationId="ExportLastRestoreReportButton"
+                                Command="{Binding ExportLastRestoreReportCommand}"
+                                HorizontalAlignment="Left"
+                                Padding="12,6"
+                                Margin="0,8,0,0" />
 
                         <TextBlock Text="Matters"
                                    FontSize="16"

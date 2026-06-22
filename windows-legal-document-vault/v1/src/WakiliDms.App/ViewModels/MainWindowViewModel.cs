@@ -89,6 +89,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _lastCloudBackupText = "Last cloud backup: none";
     private string _lastRestoreReportText = "Last restore report: none";
     private string _lastRestoreReportPath = string.Empty;
+    private string _restoreReportExportFolderPath = string.Empty;
     private string _statusMessage = "Complete setup to create a local-first document vault.";
 
     public MainWindowViewModel(
@@ -151,6 +152,7 @@ public sealed class MainWindowViewModel : ObservableObject
         RestoreSelectedCloudBackupCommand = new AsyncRelayCommand(RestoreSelectedCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled && SelectedCloudBackupSnapshot is not null);
         DeleteSelectedCloudBackupCommand = new AsyncRelayCommand(DeleteSelectedCloudBackupAsync, () => CanUseInstall && CloudBackupEnabled && SelectedCloudBackupSnapshot is not null);
         CopyLastRestoreReportPathCommand = new AsyncRelayCommand(CopyLastRestoreReportPathAsync, () => CanUseInstall && !string.IsNullOrWhiteSpace(_lastRestoreReportPath));
+        ExportLastRestoreReportCommand = new AsyncRelayCommand(ExportLastRestoreReportAsync, () => CanUseInstall && !string.IsNullOrWhiteSpace(_lastRestoreReportPath));
     }
 
     public string Title { get; } = "Windows Legal Document Vault";
@@ -483,6 +485,12 @@ public sealed class MainWindowViewModel : ObservableObject
         private set => SetProperty(ref _lastRestoreReportText, value);
     }
 
+    public string RestoreReportExportFolderPath
+    {
+        get => _restoreReportExportFolderPath;
+        set => SetProperty(ref _restoreReportExportFolderPath, value);
+    }
+
     public bool IsSetupComplete
     {
         get => _isSetupComplete;
@@ -552,6 +560,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ICommand DeleteSelectedCloudBackupCommand { get; }
 
     public ICommand CopyLastRestoreReportPathCommand { get; }
+
+    public ICommand ExportLastRestoreReportCommand { get; }
 
     public ObservableCollection<MatterListItemViewModel> Matters { get; } = [];
 
@@ -631,6 +641,7 @@ public sealed class MainWindowViewModel : ObservableObject
         ExternalRestoreTargetPath = Path.Combine(ensuredSettings.BackupTargetPath, "external-restore-workspace");
         CloudBackupProviderPath = DefaultCloudBackupProviderPath(ensuredSettings);
         CloudRestoreTargetPath = Path.Combine(ensuredSettings.BackupTargetPath, "cloud-restore");
+        RestoreReportExportFolderPath = Path.Combine(ensuredSettings.BackupTargetPath, "restore-report-exports");
         CloudBackupEnabled = ensuredSettings.CloudBackupEnabled;
         RecoveryKeyConfirmed = ensuredSettings.RecoveryKeyConfirmed;
         ApplyLicenseGate(ensuredSettings);
@@ -687,6 +698,7 @@ public sealed class MainWindowViewModel : ObservableObject
         ExternalRestoreTargetPath = Path.Combine(settings.BackupTargetPath, "external-restore-workspace");
         CloudBackupProviderPath = DefaultCloudBackupProviderPath(settings);
         CloudRestoreTargetPath = Path.Combine(settings.BackupTargetPath, "cloud-restore");
+        RestoreReportExportFolderPath = Path.Combine(settings.BackupTargetPath, "restore-report-exports");
         CloudBackupEnabled = settings.CloudBackupEnabled;
         ApplyLicenseGate(settings);
         IsSetupComplete = true;
@@ -1431,6 +1443,39 @@ public sealed class MainWindowViewModel : ObservableObject
         return Task.CompletedTask;
     }
 
+    public Task ExportLastRestoreReportAsync()
+    {
+        if (!CanUseLicensedFeatures())
+        {
+            return Task.CompletedTask;
+        }
+
+        if (string.IsNullOrWhiteSpace(_lastRestoreReportPath))
+        {
+            StatusMessage = "No restore verification report is available yet.";
+            return Task.CompletedTask;
+        }
+
+        if (!File.Exists(_lastRestoreReportPath))
+        {
+            StatusMessage = $"Latest restore verification report no longer exists: {_lastRestoreReportPath}.";
+            return Task.CompletedTask;
+        }
+
+        if (string.IsNullOrWhiteSpace(RestoreReportExportFolderPath))
+        {
+            StatusMessage = "Restore report export folder is required.";
+            return Task.CompletedTask;
+        }
+
+        Directory.CreateDirectory(RestoreReportExportFolderPath);
+        var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
+        var exportPath = Path.Combine(RestoreReportExportFolderPath, $"restore-verification-report-{timestamp}.json");
+        File.Copy(_lastRestoreReportPath, exportPath, overwrite: false);
+        StatusMessage = $"Latest restore verification report exported: {exportPath}.";
+        return Task.CompletedTask;
+    }
+
     private async Task ReloadMattersAsync()
     {
         var selectedMatterId = SelectedMatter?.Id;
@@ -1472,6 +1517,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _lastRestoreReportPath = File.Exists(reportPath) ? reportPath : string.Empty;
         LastRestoreReportText = $"Last restore report: {sourceKind} {sourceIdentifier}, {drill.VerifiedFileCount:N0} file(s), {drill.RestoredByteLength:N0} byte(s), report: {reportPath}";
         (CopyLastRestoreReportPathCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (ExportLastRestoreReportCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         return reportPath;
     }
 
@@ -1672,6 +1718,7 @@ public sealed class MainWindowViewModel : ObservableObject
         (RestoreSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (DeleteSelectedCloudBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (CopyLastRestoreReportPathCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (ExportLastRestoreReportCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private bool CanUseLicensedFeatures()

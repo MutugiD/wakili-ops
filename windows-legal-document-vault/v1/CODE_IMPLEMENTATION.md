@@ -105,6 +105,7 @@ Completed:
 - Installed app interactive E2E chooses No before Yes and verifies canceled backup cleanup preserves artifacts.
 - Persistent latest restore report summary in the status panel for local, external, and cloud restore drills.
 - Copy latest restore report path action backed by the Windows clipboard and installed-app clipboard verification.
+- Export latest restore report action with installed-app SHA-256 verification of the exported JSON report.
 
 ## SDK Requirement
 
@@ -146,3 +147,4 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 24. Slice 23: backup cleanup cancellation coverage.
 25. Slice 24: restore report status summary.
 26. Slice 25: copy latest restore report path.
+27. Slice 26: export latest restore report.
