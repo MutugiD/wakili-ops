@@ -354,6 +354,8 @@ try {
     }
     Invoke-Element -Window $window -AutomationId "RefreshLocalBackupsButton"
     Find-TextContaining -Window $window -Text "Local backup list refreshed" -TimeoutSeconds 30 | Out-Null
+    Find-TextContaining -Window $window -Text "Backup health: Healthy: local backup snapshot is available" -TimeoutSeconds 30 | Out-Null
+    Find-TextContaining -Window $window -Text "Last local backup:" -TimeoutSeconds 30 | Out-Null
     Select-FirstListItem -Window $window -AutomationId "LocalBackupsList" | Out-Null
     Set-ElementValue -Window $window -AutomationId "LocalRestoreTargetPath" -Value $localRestorePath
     Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
@@ -389,6 +391,8 @@ try {
     Set-ElementValue -Window $window -AutomationId "BackupRecoveryKey" -Value $RecoveryKey
     Invoke-Element -Window $window -AutomationId "UploadCloudBackupButton"
     Find-TextContaining -Window $window -Text "Cloud backup uploaded encrypted snapshot" -TimeoutSeconds 60 | Out-Null
+    Find-TextContaining -Window $window -Text "Backup health: Healthy: local and cloud backup snapshots are available" -TimeoutSeconds 30 | Out-Null
+    Find-TextContaining -Window $window -Text "Last cloud backup:" -TimeoutSeconds 30 | Out-Null
     Invoke-Element -Window $window -AutomationId "RefreshCloudBackupsButton"
     Find-TextContaining -Window $window -Text "Cloud backup list refreshed" -TimeoutSeconds 30 | Out-Null
     Select-FirstListItem -Window $window -AutomationId "CloudBackupsList" | Out-Null

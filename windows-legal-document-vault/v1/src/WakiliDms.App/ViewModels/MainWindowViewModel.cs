@@ -34,6 +34,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly CourtOutputCaptureService _courtOutputCaptureService;
     private readonly BackupSnapshotService _backupSnapshotService;
     private readonly LocalBackupCatalogService _localBackupCatalogService;
+    private readonly BackupHealthEvaluationService _backupHealthEvaluationService;
     private readonly RestoreDrillService _restoreDrillService;
     private readonly RestoreVerificationReportService _restoreVerificationReportService;
     private readonly CloudBackupService _cloudBackupService;
@@ -75,6 +76,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _recoveryKeyConfirmed;
     private bool _cloudBackupEnabled;
     private bool _isSetupComplete;
+    private string _backupHealthStatus = "Backup health: setup incomplete.";
+    private string _lastLocalBackupText = "Last local backup: none";
+    private string _lastCloudBackupText = "Last cloud backup: none";
     private string _statusMessage = "Complete setup to create a local-first document vault.";
 
     public MainWindowViewModel(
@@ -103,6 +107,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _courtOutputCaptureService = new CourtOutputCaptureService(_documentImportService);
         _backupSnapshotService = new BackupSnapshotService();
         _localBackupCatalogService = new LocalBackupCatalogService();
+        _backupHealthEvaluationService = new BackupHealthEvaluationService();
         _restoreDrillService = new RestoreDrillService();
         _restoreVerificationReportService = new RestoreVerificationReportService();
         _cloudBackupService = new CloudBackupService();
@@ -411,6 +416,24 @@ public sealed class MainWindowViewModel : ObservableObject
     public string CloudBackupStatusText => CloudBackupEnabled
         ? "Cloud backup: enabled for local provider testing"
         : "Cloud backup: disabled";
+
+    public string BackupHealthStatus
+    {
+        get => _backupHealthStatus;
+        private set => SetProperty(ref _backupHealthStatus, value);
+    }
+
+    public string LastLocalBackupText
+    {
+        get => _lastLocalBackupText;
+        private set => SetProperty(ref _lastLocalBackupText, value);
+    }
+
+    public string LastCloudBackupText
+    {
+        get => _lastCloudBackupText;
+        private set => SetProperty(ref _lastCloudBackupText, value);
+    }
 
     public bool IsSetupComplete
     {
@@ -1274,6 +1297,7 @@ public sealed class MainWindowViewModel : ObservableObject
         LocalBackupSnapshots.Clear();
         if (string.IsNullOrWhiteSpace(BackupTargetPath))
         {
+            UpdateBackupHealth();
             return;
         }
 
@@ -1293,6 +1317,7 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         (RestoreSelectedLocalBackupCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        UpdateBackupHealth();
     }
 
     private async Task ReloadCloudBackupsAsync(string? selectedSnapshotId = null)
@@ -1301,6 +1326,7 @@ public sealed class MainWindowViewModel : ObservableObject
         CloudBackupSnapshots.Clear();
         if (_currentSettings is null || !CloudBackupEnabled || string.IsNullOrWhiteSpace(CloudBackupProviderPath))
         {
+            UpdateBackupHealth();
             return;
         }
 
@@ -1319,6 +1345,30 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             SelectedCloudBackupSnapshot = CloudBackupSnapshots.FirstOrDefault();
         }
+
+        UpdateBackupHealth();
+    }
+
+    private void UpdateBackupHealth()
+    {
+        var localSnapshots = LocalBackupSnapshots
+            .Select(snapshot => snapshot.Summary)
+            .ToArray();
+        var cloudSnapshots = CloudBackupSnapshots
+            .Select(snapshot => snapshot.Metadata)
+            .ToArray();
+        var health = _backupHealthEvaluationService.Evaluate(
+            localSnapshots,
+            cloudSnapshots,
+            DateTimeOffset.UtcNow);
+
+        BackupHealthStatus = $"Backup health: {health.BackupStatus}";
+        LastLocalBackupText = health.LastLocalBackupAt is null
+            ? "Last local backup: none"
+            : $"Last local backup: {health.LastLocalBackupAt.Value.ToLocalTime():yyyy-MM-dd HH:mm}";
+        LastCloudBackupText = health.LastCloudBackupAt is null
+            ? "Last cloud backup: none"
+            : $"Last cloud backup: {health.LastCloudBackupAt.Value.ToLocalTime():yyyy-MM-dd HH:mm}";
     }
 
     private void ApplyLicenseGate(AppSettings settings)

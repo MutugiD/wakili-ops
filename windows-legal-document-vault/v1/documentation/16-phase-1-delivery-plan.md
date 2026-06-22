@@ -50,6 +50,7 @@ The user should be able to:
 - Refresh local backup snapshots and verify a selected backup into a restore workspace.
 - Verify a backup folder copied from another machine into a separate restore workspace.
 - Produce a restore verification report for local, external, and cloud restore checks.
+- See backup health and last backup timestamps in the app.
 - Enable the local provider cloud-backup option.
 - Upload an encrypted backup package.
 - Select a cloud backup snapshot and verify restore.
@@ -212,6 +213,7 @@ Owns:
 - Selected local backup restore workspace.
 - External backup folder restore verification.
 - Privacy-preserving restore verification reports.
+- Backup health summary.
 
 Acceptance:
 
@@ -223,6 +225,7 @@ Acceptance:
 - Selected local backup can be verified into a restore workspace.
 - Copied external backup folders can be verified without the original backup target.
 - Restore workspaces include a report that excludes matter names, document text, and recovery-key values.
+- Backup health flags missing or stale local backups and confirms when local/cloud snapshots are available.
 
 ### Optional Cloud Backup
 
@@ -284,6 +287,6 @@ Required before merge:
 The next implementation slices should remain close to document safety and recovery:
 
 1. Production cloud provider adapter after provider choice.
-2. Backup health summary on the home screen.
+2. Backup retention and cleanup policy.
 3. UI navigation polish after workflows stabilize.
 4. Phase 2 export contract for Local Matter RAG Connector.

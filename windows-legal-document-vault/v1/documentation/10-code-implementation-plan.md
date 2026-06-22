@@ -532,8 +532,23 @@ Verification:
 - `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Restore verification report"`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
 
+## Completed Slice: Backup Health Summary
+
+Implemented:
+
+- `BackupHealthEvaluationService` that evaluates local and cloud backup snapshots.
+- Home status panel backup health text.
+- Last local backup timestamp.
+- Last cloud backup timestamp.
+- Installed-app interactive workflow assertions for local-only and local-plus-cloud health states.
+
+Verification:
+
+- `dotnet run --project tests\WakiliDms.Tests\WakiliDms.Tests.csproj --configuration Release -- --filter "Backup health"`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-InstalledAppInteractiveWorkflow.ps1 -BuildAndInstallPackage`
+
 ## Following Slices
 
 1. Production cloud provider adapter after provider choice.
-2. Backup health summary on the home screen.
+2. Backup retention and cleanup policy.
 3. Hosted admin/payment entitlement integration, when monetization backend is prioritized.

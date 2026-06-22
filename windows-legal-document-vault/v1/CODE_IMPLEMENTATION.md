@@ -94,6 +94,8 @@ Completed:
 - Installed app interactive E2E verifies copied external backup restore into a separate workspace.
 - Restore verification report service for local, external, and cloud restore checks.
 - Installed app interactive E2E verifies restore report creation across all restore paths.
+- Backup health evaluator and home status panel for local/cloud backup posture.
+- Installed app interactive E2E verifies backup health after local and cloud backups.
 
 ## SDK Requirement
 
@@ -128,3 +130,4 @@ dotnet run --project src/WakiliDms.App/WakiliDms.App.csproj
 17. Slice 16: local backup restore workspace browser.
 18. Slice 17: cross-machine backup restore verification.
 19. Slice 18: restore verification reports.
+20. Slice 19: backup health summary.

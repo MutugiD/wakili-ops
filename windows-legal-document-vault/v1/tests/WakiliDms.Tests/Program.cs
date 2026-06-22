@@ -48,6 +48,9 @@ var tests = new (string Name, Action Test)[]
     ("Restore drill verifies backup hashes and copies restorable files", RestoreDrillVerifiesBackupHashesAndCopiesRestorableFiles),
     ("Restore drill verifies backup copied from another machine", RestoreDrillVerifiesBackupCopiedFromAnotherMachine),
     ("Restore verification report excludes document text", RestoreVerificationReportExcludesDocumentText),
+    ("Backup health reports no local backups", BackupHealthReportsNoLocalBackups),
+    ("Backup health reports healthy local and cloud backups", BackupHealthReportsHealthyLocalAndCloudBackups),
+    ("Backup health reports stale local backups", BackupHealthReportsStaleLocalBackups),
     ("Local backup catalog lists restorable snapshots", LocalBackupCatalogListsRestorableSnapshots),
     ("Backup snapshot rejects target inside vault", BackupSnapshotRejectsTargetInsideVault),
     ("Restore drill rejects destructive target paths without deleting backup", RestoreDrillRejectsDestructiveTargetPathsWithoutDeletingBackup),
@@ -1324,6 +1327,65 @@ static void RestoreVerificationReportExcludesDocumentText()
             Directory.Delete(tempRoot, recursive: true);
         }
     }
+}
+
+static void BackupHealthReportsNoLocalBackups()
+{
+    var health = new BackupHealthEvaluationService().Evaluate(
+        [],
+        [],
+        DateTimeOffset.UtcNow);
+
+    Assert(health.LastLocalBackupAt is null, "No local backup should produce null last local backup time.");
+    Assert(health.BackupStatus.Contains("no local backup", StringComparison.OrdinalIgnoreCase), "Health status should explain missing local backups.");
+}
+
+static void BackupHealthReportsHealthyLocalAndCloudBackups()
+{
+    var now = DateTimeOffset.UtcNow;
+    var localSnapshots = new[]
+    {
+        new LocalBackupSnapshotSummary(
+            @"D:\Backups\vault-backup-healthy",
+            "vault-backup-healthy",
+            now.AddHours(-2),
+            3,
+            1024)
+    };
+    var cloudSnapshots = new[]
+    {
+        new CloudBackupSnapshotMetadata(
+            Guid.NewGuid(),
+            "cloud-snapshot-healthy",
+            now.AddHours(-1),
+            2048,
+            "HASH",
+            "Uploaded")
+    };
+
+    var health = new BackupHealthEvaluationService().Evaluate(localSnapshots, cloudSnapshots, now);
+
+    Assert(health.LastLocalBackupAt == localSnapshots[0].CreatedAt, "Health should expose latest local backup time.");
+    Assert(health.LastCloudBackupAt == cloudSnapshots[0].CreatedAt, "Health should expose latest cloud backup time.");
+    Assert(health.BackupStatus.Contains("Healthy", StringComparison.Ordinal), "Health status should be healthy when recent local and cloud backups exist.");
+}
+
+static void BackupHealthReportsStaleLocalBackups()
+{
+    var now = DateTimeOffset.UtcNow;
+    var localSnapshots = new[]
+    {
+        new LocalBackupSnapshotSummary(
+            @"D:\Backups\vault-backup-stale",
+            "vault-backup-stale",
+            now.AddDays(-8),
+            3,
+            1024)
+    };
+
+    var health = new BackupHealthEvaluationService().Evaluate(localSnapshots, [], now);
+
+    Assert(health.BackupStatus.Contains("older than 7 days", StringComparison.Ordinal), "Health status should flag stale local backups.");
 }
 
 static void BackupSnapshotRejectsTargetInsideVault()

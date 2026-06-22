@@ -334,3 +334,25 @@ Manual verification:
 - Run external backup restore verification.
 - Run selected cloud restore drill.
 - Confirm each restore workspace contains `restore-verification-report.json`.
+
+## Slice 19: Backup Health Summary
+
+Goal:
+
+- Show a plain backup health summary in the Windows app so a user can quickly see whether local and cloud backups exist and whether they look stale.
+
+Automated tests:
+
+- Missing local backups are flagged.
+- Recent local backup is healthy.
+- Recent local and cloud backups are healthy.
+- Local backup older than 7 days is flagged.
+- Installed-app workflow verifies the UI health text after local and cloud backup actions.
+
+Manual verification:
+
+- Open the app after setup and see backup health.
+- Run local backup and refresh local backups.
+- Confirm health shows a local backup is available.
+- Upload cloud backup.
+- Confirm health shows local and cloud backups are available.
