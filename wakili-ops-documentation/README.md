@@ -49,6 +49,7 @@ This solves a court submission problem, but not the law firm document ownership 
 - [09-glossary.md](09-glossary.md): glossary of legal-tech, filing, and architecture terms.
 - [10-validation-research-plan.md](10-validation-research-plan.md): field validation plan and interview guide for advocates and clerks.
 - [11-windows-v1-product-requirements.md](11-windows-v1-product-requirements.md): Windows MVP requirements and technical decision record.
+- [12-ai-ready-technical-specification-python-native-windows.md](12-ai-ready-technical-specification-python-native-windows.md): strict AI-ready redesign specification for the three-product suite using a Python 3.11 native Windows delivery model.
 
 ## V1 Build Handbook
 

@@ -114,6 +114,7 @@ wakili-ops-documentation/
 Start with:
 
 - [Wakili Ops Documentation](wakili-ops-documentation/README.md)
+- [AI-Ready Python Native Windows Redesign Specification](wakili-ops-documentation/12-ai-ready-technical-specification-python-native-windows.md)
 - [Wakili Ops Product Phases](PHASES.md)
 - [Windows Legal Document Vault V1 Handbook](windows-legal-document-vault/v1/documentation/README.md)
 
